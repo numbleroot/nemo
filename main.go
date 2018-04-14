@@ -2,9 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 
+	"encoding/json"
+	"io/ioutil"
 	"path/filepath"
 
 	"github.com/numbleroot/nemo/faultinjectors"
@@ -25,22 +28,50 @@ type GraphDatabase interface {
 
 // Structs.
 
+type CrashFailure struct {
+	Node string
+	Time uint
+}
+
+type MessageLoss struct {
+	From string
+	To   string
+	Time uint
+}
+
+// FailureSpec
+type FailureSpec struct {
+	EOT        uint
+	EFF        uint
+	MaxCrashes uint
+	Nodes      *[]string
+	Crashes    *[]CrashFailure
+	Omissions  *[]MessageLoss
+}
+
+// Model
+type Model struct {
+	Tables map[string][][]string
+}
+
 // Message
 type Message struct {
-	Content  string
-	SendNode string
-	RecvNode string
-	SendTime string
-	RecvTime string
+	Content  string `json:"table"`
+	SendNode string `json:"from"`
+	RecvNode string `json:"to"`
+	SendTime uint   `json:"sendTime"`
+	RecvTime uint   `json:"receiveTime"`
 }
 
 // FaultInjRun
 type FaultInjRun struct {
-	Iteration uint
-	Status    string
-	Messages  []*Message
-	PreProv   *ProvData
-	PostProv  *ProvData
+	Iteration   uint         `json:"iteration"`
+	Status      string       `json:"status"`
+	FailureSpec *FailureSpec `json:"failureSpec"`
+	Model       *Model       `json:"model"`
+	Messages    []*Message   `json:"messages"`
+	PreProv     *ProvData    `json:"-"`
+	PostProv    *ProvData    `json:"-"`
 }
 
 // DebugRun
@@ -87,6 +118,21 @@ func main() {
 	err = os.MkdirAll(debugRun.thisResultsDir, 0755)
 	if err != nil {
 		log.Fatalf("Could not ensure resDir existence: %v", err)
+	}
+
+	// Find out how many iterations the fault injection run contains.
+	rawRunsCont, err := ioutil.ReadFile(filepath.Join(faultInjOut, "runs.json"))
+	if err != nil {
+		log.Fatalf("Could not read runs.json file in faultInjOut directory: %v", err)
+	}
+
+	err = json.Unmarshal(rawRunsCont, &debugRun.faultInjRuns)
+	if err != nil {
+		log.Fatalf("Failed to unmarshal JSON content to runs structure: %v\n", err)
+	}
+
+	for i := range debugRun.faultInjRuns {
+		fmt.Printf("\trun %d: '%v'\n", i, debugRun.faultInjRuns[i])
 	}
 
 	// Extract, transform, and load fault injector output.
