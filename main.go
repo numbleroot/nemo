@@ -25,13 +25,32 @@ type GraphDatabase interface {
 
 // Structs.
 
+// Message
+type Message struct {
+	Content  string
+	SendNode string
+	RecvNode string
+	SendTime string
+	RecvTime string
+}
+
+// FaultInjRun
+type FaultInjRun struct {
+	Iteration uint
+	Status    string
+	Messages  []*Message
+	PreProv   *ProvData
+	PostProv  *ProvData
+}
+
 // DebugRun
 type DebugRun struct {
-	faultInj       FaultInjector
-	graphDB        GraphDatabase
 	workDir        string
 	allResultsDir  string
 	thisResultsDir string
+	faultInj       FaultInjector
+	graphDB        GraphDatabase
+	faultInjRuns   []*FaultInjRun
 }
 
 func main() {
