@@ -6,7 +6,33 @@ import (
 	"os"
 
 	"path/filepath"
+
+	"github.com/numbleroot/nemo/faultinjectors"
+	"github.com/numbleroot/nemo/graphing"
 )
+
+// Interfaces.
+
+// FaultInjector
+type FaultInjector interface {
+	LoadOutput(string) error
+}
+
+// GraphDatabase
+type GraphDatabase interface {
+	LoadNaiveProv() error
+}
+
+// Structs.
+
+// DebugRun
+type DebugRun struct {
+	faultInj       FaultInjector
+	graphDB        GraphDatabase
+	workDir        string
+	allResultsDir  string
+	thisResultsDir string
+}
 
 func main() {
 
@@ -26,18 +52,29 @@ func main() {
 		log.Fatalf("Failed obtaining absolute current directory: %v", err)
 	}
 
-	// Define currently non-configurable variables.
-	faultInjRun := filepath.Base(faultInjOut)
-	allResDir := filepath.Join(curDir, "results")
-	resDir := filepath.Join(allResDir, faultInjRun)
+	// Start building structs.
+	debugRun := &DebugRun{
+		faultInj: &faultinjectors.Molly{
+			Run:       filepath.Base(faultInjOut),
+			OutputDir: faultInjOut,
+		},
+		graphDB:        &graphing.Neo4J{},
+		workDir:        curDir,
+		allResultsDir:  filepath.Join(curDir, "results"),
+		thisResultsDir: filepath.Join(curDir, "results", filepath.Base(faultInjOut)),
+	}
 
 	// Ensure the results directory for this debug run exists.
-	err = os.MkdirAll(resDir, 0755)
+	err = os.MkdirAll(debugRun.thisResultsDir, 0755)
 	if err != nil {
 		log.Fatalf("Could not ensure resDir existence: %v", err)
 	}
 
 	// Extract, transform, and load fault injector output.
+	err = debugRun.faultInj.LoadOutput(debugRun.thisResultsDir)
+	if err != nil {
+		log.Fatalf("Failed to load output from Molly: %v", err)
+	}
 
 	// Prepare and calculate provenance graphs.
 
