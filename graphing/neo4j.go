@@ -18,6 +18,7 @@ func (n *Neo4J) InitGraphDB(boltURI string) error {
 
 	driver := neo4j.NewDriver()
 
+	// Connect to bolt endpoint.
 	c, err := driver.OpenNeo(boltURI)
 	if err != nil {
 		return err

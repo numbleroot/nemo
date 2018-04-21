@@ -15,4 +15,5 @@
 
 # Project-specific
 nemo
+.env
 results/

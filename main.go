@@ -7,6 +7,7 @@ import (
 
 	"path/filepath"
 
+	"github.com/joho/godotenv"
 	"github.com/numbleroot/nemo/faultinjectors"
 	"github.com/numbleroot/nemo/graphing"
 )
@@ -39,7 +40,6 @@ func main() {
 
 	// Define which flags are supported.
 	faultInjOutFlag := flag.String("faultInjOut", "", "Specify file system path to output directory of fault injector.")
-	graphDBConnFlag := flag.String("graphDBConn", "bolt://127.0.0.1:7687", "Supply URI to use for connecting to graph database.")
 	flag.Parse()
 
 	// Extract and check for existence of required ones.
@@ -48,7 +48,17 @@ func main() {
 		log.Fatal("Please provide a fault injection output directory to analyze.")
 	}
 
-	graphDBConn := *graphDBConnFlag
+	// Load content of environment file as variables.
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Failed loading .env file: %v", err)
+	}
+
+	// Retrieve graph database connection URI from environment.
+	graphDBConn := os.Getenv("GRAPH_DB_URI")
+	if graphDBConn == "" {
+		log.Fatal("Please set GRAPH_DB_URI in local .env file.")
+	}
 
 	// Determine current working directory.
 	curDir, err := filepath.Abs(".")
