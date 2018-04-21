@@ -127,9 +127,6 @@ func (m *Molly) LoadOutput() error {
 		if err != nil {
 			return fmt.Errorf("Failed to unmarshal JSON post-provenance data: %v\n", err)
 		}
-
-		fmt.Printf("FILE '%v' => PRE '%v'\n\n", preProvFile, m.Runs[i].PreProv)
-		fmt.Printf("FILE '%v' => POST '%v'\n\n", postProvFile, m.Runs[i].PostProv)
 	}
 
 	return nil

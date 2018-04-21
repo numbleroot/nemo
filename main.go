@@ -20,6 +20,7 @@ type FaultInjector interface {
 
 // GraphDatabase
 type GraphDatabase interface {
+	InitGraphDB(string) error
 	LoadNaiveProv() error
 }
 
@@ -38,6 +39,7 @@ func main() {
 
 	// Define which flags are supported.
 	faultInjOutFlag := flag.String("faultInjOut", "", "Specify file system path to output directory of fault injector.")
+	graphDBConnFlag := flag.String("graphDBConn", "bolt://127.0.0.1:7687", "Supply URI to use for connecting to graph database.")
 	flag.Parse()
 
 	// Extract and check for existence of required ones.
@@ -45,6 +47,8 @@ func main() {
 	if faultInjOut == "" {
 		log.Fatal("Please provide a fault injection output directory to analyze.")
 	}
+
+	graphDBConn := *graphDBConnFlag
 
 	// Determine current working directory.
 	curDir, err := filepath.Abs(".")
@@ -76,7 +80,17 @@ func main() {
 		log.Fatalf("Failed to load output from Molly: %v", err)
 	}
 
+	// Connect to graph database.
+	err = debugRun.graphDB.InitGraphDB(graphDBConn)
+	if err != nil {
+		log.Fatalf("Failed to initialize connection to graph database: %v", err)
+	}
+
 	// Prepare and calculate provenance graphs.
+	err = debugRun.graphDB.LoadNaiveProv()
+	if err != nil {
+		log.Fatalf("Failed to import provenance (naive) into graph database: %v", err)
+	}
 
 	// Analyze (debug) the system.
 
