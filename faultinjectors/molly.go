@@ -131,3 +131,8 @@ func (m *Molly) LoadOutput() error {
 
 	return nil
 }
+
+// GetOutput returns all parsed runs from Molly.
+func (m *Molly) GetOutput() []*Run {
+	return m.Runs
+}

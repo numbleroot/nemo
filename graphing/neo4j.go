@@ -8,6 +8,7 @@ import (
 	"os/exec"
 
 	neo4j "github.com/johnnadratowski/golang-neo4j-bolt-driver"
+	"github.com/numbleroot/nemo/faultinjectors"
 )
 
 // Structs.
@@ -74,6 +75,60 @@ func (n *Neo4J) CloseDB() error {
 }
 
 // LoadNaiveProv
-func (n *Neo4J) LoadNaiveProv() error {
+func (n *Neo4J) LoadNaiveProv(runs []*faultinjectors.Run) error {
+
+	for i := range runs {
+
+		stmtGoal, err := n.Conn.PrepareNeo("CREATE (n:Goal {run: {run}, condition: {condition}, label: {label}, table: {table}, type: {type}})")
+		if err != nil {
+			return err
+		}
+
+		for j := range runs[i].PreProv.Goals {
+
+			// Create a goal node.
+			_, err := stmtGoal.ExecNeo(map[string]interface{}{
+				"run":       runs[i].Iteration,
+				"condition": "pre",
+				"label":     runs[i].PreProv.Goals[j].Label,
+				"table":     runs[i].PreProv.Goals[j].Table,
+				"type":      "single",
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		err = stmtGoal.Close()
+		if err != nil {
+			return err
+		}
+
+		stmtRule, err := n.Conn.PrepareNeo("CREATE (n:Rule {run: {run}, condition: {condition}, label: {label}, table: {table}, type: {type}})")
+		if err != nil {
+			return err
+		}
+
+		for j := range runs[i].PreProv.Rules {
+
+			// Create a rule node.
+			_, err := stmtRule.ExecNeo(map[string]interface{}{
+				"run":       runs[i].Iteration,
+				"condition": "pre",
+				"label":     runs[i].PreProv.Rules[j].Label,
+				"table":     runs[i].PreProv.Rules[j].Table,
+				"type":      "single",
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		err = stmtRule.Close()
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

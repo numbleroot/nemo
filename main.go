@@ -16,13 +16,14 @@ import (
 // FaultInjector
 type FaultInjector interface {
 	LoadOutput() error
+	GetOutput() []*faultinjectors.Run
 }
 
 // GraphDatabase
 type GraphDatabase interface {
 	InitGraphDB(string) error
 	CloseDB() error
-	LoadNaiveProv() error
+	LoadNaiveProv([]*faultinjectors.Run) error
 }
 
 // Structs.
@@ -110,7 +111,7 @@ func main() {
 	defer debugRun.graphDB.CloseDB()
 
 	// Prepare and calculate provenance graphs.
-	err = debugRun.graphDB.LoadNaiveProv()
+	err = debugRun.graphDB.LoadNaiveProv(debugRun.faultInj.GetOutput())
 	if err != nil {
 		log.Fatalf("Failed to import provenance (naive) into graph database: %v", err)
 	}
