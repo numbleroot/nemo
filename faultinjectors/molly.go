@@ -118,6 +118,22 @@ func (m *Molly) LoadOutput() error {
 			return fmt.Errorf("Failed to unmarshal JSON pre-provenance data: %v\n", err)
 		}
 
+		// Prefix goals with "pre_".
+		for j := range m.Runs[i].PreProv.Goals {
+			m.Runs[i].PreProv.Goals[j].ID = fmt.Sprintf("pre_%s", m.Runs[i].PreProv.Goals[j].ID)
+		}
+
+		// Prefix rules with "pre_".
+		for j := range m.Runs[i].PreProv.Rules {
+			m.Runs[i].PreProv.Rules[j].ID = fmt.Sprintf("pre_%s", m.Runs[i].PreProv.Rules[j].ID)
+		}
+
+		// Prefix edges with "pre_".
+		for j := range m.Runs[i].PreProv.Edges {
+			m.Runs[i].PreProv.Edges[j].From = fmt.Sprintf("pre_%s", m.Runs[i].PreProv.Edges[j].From)
+			m.Runs[i].PreProv.Edges[j].To = fmt.Sprintf("pre_%s", m.Runs[i].PreProv.Edges[j].To)
+		}
+
 		rawPostProvCont, err := ioutil.ReadFile(postProvFile)
 		if err != nil {
 			return fmt.Errorf("Failed reading post-provenance of file '%v': %v", postProvFile, err)
@@ -126,6 +142,22 @@ func (m *Molly) LoadOutput() error {
 		err = json.Unmarshal(rawPostProvCont, &m.Runs[i].PostProv)
 		if err != nil {
 			return fmt.Errorf("Failed to unmarshal JSON post-provenance data: %v\n", err)
+		}
+
+		// Prefix goals with "post_".
+		for j := range m.Runs[i].PostProv.Goals {
+			m.Runs[i].PostProv.Goals[j].ID = fmt.Sprintf("post_%s", m.Runs[i].PostProv.Goals[j].ID)
+		}
+
+		// Prefix rules with "post_".
+		for j := range m.Runs[i].PostProv.Rules {
+			m.Runs[i].PostProv.Rules[j].ID = fmt.Sprintf("post_%s", m.Runs[i].PostProv.Rules[j].ID)
+		}
+
+		// Prefix edges with "post_".
+		for j := range m.Runs[i].PostProv.Edges {
+			m.Runs[i].PostProv.Edges[j].From = fmt.Sprintf("post_%s", m.Runs[i].PostProv.Edges[j].From)
+			m.Runs[i].PostProv.Edges[j].To = fmt.Sprintf("post_%s", m.Runs[i].PostProv.Edges[j].To)
 		}
 	}
 

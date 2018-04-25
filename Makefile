@@ -4,6 +4,7 @@ all: clean build
 
 clean:
 	go clean -i ./...
+	rm -rf tmp/
 
 deps:
 	rm -rf vendor
