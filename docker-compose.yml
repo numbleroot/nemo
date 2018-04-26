@@ -3,16 +3,18 @@ version: '3'
 services:
 
   graphdb:
-    image: "neo4j:3.3"
+    image: "neo4j:3.3.3"
     container_name: "graphdb"
     hostname: "graphdb"
-    user: "1000"
     ports:
       - "127.0.0.1:7474:7474"
       - "127.0.0.1:7687:7687"
     volumes:
       - "./tmp/db:/data"
       - "./tmp/logs:/logs"
+      - "./tmp/plugins:/plugins"
     environment:
       - "NEO4J_AUTH=none"
+      - "NEO4J_apoc_export_file_enabled=true"
+      - "NEO4J_apoc_import_file_enabled=true"
     network_mode: "bridge"

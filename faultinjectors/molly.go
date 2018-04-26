@@ -80,9 +80,11 @@ type Run struct {
 
 // Molly
 type Molly struct {
-	Run       string
-	OutputDir string
-	Runs      []*Run
+	Run         string
+	OutputDir   string
+	Runs        []*Run
+	SuccessRuns []uint
+	FailedRuns  []uint
 }
 
 // Functions.
@@ -102,8 +104,19 @@ func (m *Molly) LoadOutput() error {
 		return fmt.Errorf("Failed to unmarshal JSON content to runs structure: %v\n", err)
 	}
 
+	m.SuccessRuns = make([]uint, 0, len(m.Runs))
+	m.FailedRuns = make([]uint, 0, 3)
+
 	// Load pre- and post-provenance for each iteration.
 	for i := range m.Runs {
+
+		// Note return status of fault injection
+		// run in separate structure.
+		if m.Runs[i].Status == "success" {
+			m.SuccessRuns = append(m.SuccessRuns, m.Runs[i].Iteration)
+		} else {
+			m.FailedRuns = append(m.FailedRuns, m.Runs[i].Iteration)
+		}
 
 		preProvFile := filepath.Join(m.OutputDir, fmt.Sprintf("run_%d_pre_provenance.json", i))
 		postProvFile := filepath.Join(m.OutputDir, fmt.Sprintf("run_%d_post_provenance.json", i))
@@ -167,4 +180,9 @@ func (m *Molly) LoadOutput() error {
 // GetOutput returns all parsed runs from Molly.
 func (m *Molly) GetOutput() []*Run {
 	return m.Runs
+}
+
+// GetFailedRuns returns indexes of failed runs.
+func (m *Molly) GetFailedRuns() []uint {
+	return m.FailedRuns
 }

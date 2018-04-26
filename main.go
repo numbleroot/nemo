@@ -10,6 +10,7 @@ import (
 
 	"github.com/numbleroot/nemo/faultinjectors"
 	"github.com/numbleroot/nemo/graphing"
+	"github.com/numbleroot/nemo/report"
 )
 
 // Interfaces.
@@ -18,6 +19,7 @@ import (
 type FaultInjector interface {
 	LoadOutput() error
 	GetOutput() []*faultinjectors.Run
+	GetFailedRuns() []uint
 }
 
 // GraphDatabase
@@ -25,7 +27,12 @@ type GraphDatabase interface {
 	InitGraphDB(string) error
 	CloseDB() error
 	LoadNaiveProv([]*faultinjectors.Run) error
-	CreateNaiveDiffProv(bool) error
+	CreateNaiveDiffProv(bool, []uint) error
+}
+
+// Reporter
+type Reporter interface {
+	CopyFaultInjReport(string, string) error
 }
 
 // Structs.
@@ -39,6 +46,7 @@ type DebugRun struct {
 	tmpGraphLogsDir string
 	faultInj        FaultInjector
 	graphDB         GraphDatabase
+	reporter        Reporter
 }
 
 func main() {
@@ -55,6 +63,7 @@ func main() {
 	}
 
 	graphDBConn := *graphDBConnFlag
+	// _ = *graphDBConnFlag
 
 	// Determine current working directory.
 	curDir, err := filepath.Abs(".")
@@ -73,7 +82,8 @@ func main() {
 			Run:       filepath.Base(faultInjOut),
 			OutputDir: faultInjOut,
 		},
-		graphDB: &graphing.Neo4J{},
+		graphDB:  &graphing.Neo4J{},
+		reporter: &report.Report{},
 	}
 
 	// Ensure the results directory for this debug run exists.
@@ -108,6 +118,7 @@ func main() {
 	// Graph queries.
 
 	// Connect to graph database docker container.
+
 	err = debugRun.graphDB.InitGraphDB(graphDBConn)
 	if err != nil {
 		log.Fatalf("Failed to initialize connection to graph database: %v", err)
@@ -139,7 +150,7 @@ func main() {
 
 	// Create differential provenance graphs
 	// for postcondition provenance.
-	err = debugRun.graphDB.CreateNaiveDiffProv(false)
+	err = debugRun.graphDB.CreateNaiveDiffProv(false, debugRun.faultInj.GetFailedRuns())
 	if err != nil {
 		log.Fatalf("Could not create the naive differential provenance (bad - good): %v", err)
 	}
@@ -156,6 +167,10 @@ func main() {
 
 	// Copy current fault injector's output.
 	// TODO: Supersede this with dedicated website.
+	err = debugRun.reporter.CopyFaultInjReport(faultInjOut, debugRun.allResultsDir)
+	if err != nil {
+		log.Fatalf("Failed to copy fault injection report to results directory: %v", err)
+	}
 
 	// Generate report webpage containing
 	// all insights and suggestions.

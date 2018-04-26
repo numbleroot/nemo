@@ -291,6 +291,30 @@ func (n *Neo4J) LoadNaiveProv(runs []*faultinjectors.Run) error {
 }
 
 // CreateNaiveDiffProv
-func (n *Neo4J) CreateNaiveDiffProv(symmetric bool) error {
+func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint) error {
+
+	stmtDiff, err := n.Conn1.PrepareNeo("CALL apoc.export.cypher.query(\"MATCH (failed:Goal {run: {run}, condition: 'post'}) WITH collect(failed.label) AS failGoals MATCH pathSucc = (root:Goal {run: 0, condition: 'post'})-[*0..]->(goal:Goal {run: 0, condition: 'post'}) WHERE NOT root.label IN failGoals AND NOT goal.label IN failGoals RETURN pathSucc;\", \"{path}\", {format:\"plain\",cypherFormat:\"create\"}) YIELD file, source, format, nodes, relationships, properties, time RETURN file, source, format, nodes, relationships, properties, time;")
+	if err != nil {
+		return err
+	}
+
+	for i := range failedRuns {
+
+		res, err := stmtDiff.ExecNeo(map[string]interface{}{
+			"run":  failedRuns[i],
+			"path": "/tmp/testomestopesto",
+		})
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("RES: '%#v'\n", res)
+	}
+
+	err = stmtDiff.Close()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
