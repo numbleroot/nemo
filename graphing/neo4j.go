@@ -56,6 +56,8 @@ func (n *Neo4J) InitGraphDB(boltURI string) error {
 	n.Conn1 = c1
 	n.Conn2 = c2
 
+	fmt.Println()
+
 	return nil
 }
 
@@ -283,5 +285,12 @@ func (n *Neo4J) LoadNaiveProv(runs []*faultinjectors.Run) error {
 		fmt.Printf(" done\n")
 	}
 
+	fmt.Println()
+
+	return nil
+}
+
+// CreateNaiveDiffProv
+func (n *Neo4J) CreateNaiveDiffProv(symmetric bool) error {
 	return nil
 }

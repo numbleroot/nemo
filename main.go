@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 
@@ -24,6 +25,7 @@ type GraphDatabase interface {
 	InitGraphDB(string) error
 	CloseDB() error
 	LoadNaiveProv([]*faultinjectors.Run) error
+	CreateNaiveDiffProv(bool) error
 }
 
 // Structs.
@@ -103,6 +105,8 @@ func main() {
 		log.Fatalf("Failed to load output from Molly: %v", err)
 	}
 
+	// Graph queries.
+
 	// Connect to graph database docker container.
 	err = debugRun.graphDB.InitGraphDB(graphDBConn)
 	if err != nil {
@@ -110,13 +114,52 @@ func main() {
 	}
 	defer debugRun.graphDB.CloseDB()
 
-	// Prepare and calculate provenance graphs.
+	// Load initial (naive) version of provenance
+	// graphs for pre- and postcondition.
 	err = debugRun.graphDB.LoadNaiveProv(debugRun.faultInj.GetOutput())
 	if err != nil {
 		log.Fatalf("Failed to import provenance (naive) into graph database: %v", err)
 	}
 
-	// Analyze (debug) the system.
+	// Clean-up loaded provenance data and
+	// reimport in reduced versions.
+	// TODO: Implement this.
+	// err = debugRun.graphDB.PreprocessProv()
+	// if err != nil {
+	// 	log.Fatalf("Could not clean-up initial provenance data: %v", err)
+	// }
 
-	// Create and write-out report.
+	// Extract prototypes of successful and
+	// failed runs (skeletons) and import.
+	// TODO: Implement this.
+	// err = debugRun.graphDB.ExtractPrototypes()
+	// if err != nil {
+	// 	log.Fatalf("Failed to create prototypical successful and failed executions: %v", err)
+	// }
+
+	// Create differential provenance graphs
+	// for postcondition provenance.
+	err = debugRun.graphDB.CreateNaiveDiffProv(false)
+	if err != nil {
+		log.Fatalf("Could not create the naive differential provenance (bad - good): %v", err)
+	}
+
+	// Debugging.
+
+	// Determine correction suggestions (pre ~> diffprov).
+	// TODO: Implement this.
+
+	// Determine extension suggestions (diffprov).
+	// TODO: Implement this.
+
+	// Reporting.
+
+	// Copy current fault injector's output.
+	// TODO: Supersede this with dedicated website.
+
+	// Generate report webpage containing
+	// all insights and suggestions.
+	// TODO: Implement this.
+
+	fmt.Printf("All done! Find the debug report here: %s\n\n", filepath.Join(debugRun.thisResultsDir, "index.html"))
 }
