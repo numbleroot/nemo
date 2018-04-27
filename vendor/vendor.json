@@ -1,0 +1,49 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "TsX+LuxHhV9GFmua8C1nxflFcTA=",
+			"path": "github.com/johnnadratowski/golang-neo4j-bolt-driver",
+			"revision": "1108d6e66ccf2c8e68ab26b5f64e6c0a2ad00899",
+			"revisionTime": "2017-12-18T14:36:11Z"
+		},
+		{
+			"checksumSHA1": "ZD+c/CrHF12yYhu5wHszbIq3Aww=",
+			"path": "github.com/johnnadratowski/golang-neo4j-bolt-driver/encoding",
+			"revision": "1108d6e66ccf2c8e68ab26b5f64e6c0a2ad00899",
+			"revisionTime": "2017-12-18T14:36:11Z"
+		},
+		{
+			"checksumSHA1": "9lgMFoaIFZe75vv7ln+IbPKHasE=",
+			"path": "github.com/johnnadratowski/golang-neo4j-bolt-driver/errors",
+			"revision": "1108d6e66ccf2c8e68ab26b5f64e6c0a2ad00899",
+			"revisionTime": "2017-12-18T14:36:11Z"
+		},
+		{
+			"checksumSHA1": "MeB74aEJl/Vif3wfI/yyskLXgQ8=",
+			"path": "github.com/johnnadratowski/golang-neo4j-bolt-driver/log",
+			"revision": "1108d6e66ccf2c8e68ab26b5f64e6c0a2ad00899",
+			"revisionTime": "2017-12-18T14:36:11Z"
+		},
+		{
+			"checksumSHA1": "QBWn/ajykCeEt1W21Ufl9RxLeX4=",
+			"path": "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures",
+			"revision": "1108d6e66ccf2c8e68ab26b5f64e6c0a2ad00899",
+			"revisionTime": "2017-12-18T14:36:11Z"
+		},
+		{
+			"checksumSHA1": "vLBWZ/5wRQ4PIyIOW3dbXlKbd3s=",
+			"path": "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph",
+			"revision": "1108d6e66ccf2c8e68ab26b5f64e6c0a2ad00899",
+			"revisionTime": "2017-12-18T14:36:11Z"
+		},
+		{
+			"checksumSHA1": "WSdNJOxRdPV0gCzq7mX6cqIf3/c=",
+			"path": "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/messages",
+			"revision": "1108d6e66ccf2c8e68ab26b5f64e6c0a2ad00899",
+			"revisionTime": "2017-12-18T14:36:11Z"
+		}
+	],
+	"rootPath": "github.com/numbleroot/nemo"
+}
