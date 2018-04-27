@@ -133,18 +133,18 @@ func (m *Molly) LoadOutput() error {
 
 		// Prefix goals with "pre_".
 		for j := range m.Runs[i].PreProv.Goals {
-			m.Runs[i].PreProv.Goals[j].ID = fmt.Sprintf("pre_%s", m.Runs[i].PreProv.Goals[j].ID)
+			m.Runs[i].PreProv.Goals[j].ID = fmt.Sprintf("run_%d_pre_%s", m.Runs[i].Iteration, m.Runs[i].PreProv.Goals[j].ID)
 		}
 
 		// Prefix rules with "pre_".
 		for j := range m.Runs[i].PreProv.Rules {
-			m.Runs[i].PreProv.Rules[j].ID = fmt.Sprintf("pre_%s", m.Runs[i].PreProv.Rules[j].ID)
+			m.Runs[i].PreProv.Rules[j].ID = fmt.Sprintf("run_%d_pre_%s", m.Runs[i].Iteration, m.Runs[i].PreProv.Rules[j].ID)
 		}
 
 		// Prefix edges with "pre_".
 		for j := range m.Runs[i].PreProv.Edges {
-			m.Runs[i].PreProv.Edges[j].From = fmt.Sprintf("pre_%s", m.Runs[i].PreProv.Edges[j].From)
-			m.Runs[i].PreProv.Edges[j].To = fmt.Sprintf("pre_%s", m.Runs[i].PreProv.Edges[j].To)
+			m.Runs[i].PreProv.Edges[j].From = fmt.Sprintf("run_%d_pre_%s", m.Runs[i].Iteration, m.Runs[i].PreProv.Edges[j].From)
+			m.Runs[i].PreProv.Edges[j].To = fmt.Sprintf("run_%d_pre_%s", m.Runs[i].Iteration, m.Runs[i].PreProv.Edges[j].To)
 		}
 
 		rawPostProvCont, err := ioutil.ReadFile(postProvFile)
@@ -159,18 +159,18 @@ func (m *Molly) LoadOutput() error {
 
 		// Prefix goals with "post_".
 		for j := range m.Runs[i].PostProv.Goals {
-			m.Runs[i].PostProv.Goals[j].ID = fmt.Sprintf("post_%s", m.Runs[i].PostProv.Goals[j].ID)
+			m.Runs[i].PostProv.Goals[j].ID = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Goals[j].ID)
 		}
 
 		// Prefix rules with "post_".
 		for j := range m.Runs[i].PostProv.Rules {
-			m.Runs[i].PostProv.Rules[j].ID = fmt.Sprintf("post_%s", m.Runs[i].PostProv.Rules[j].ID)
+			m.Runs[i].PostProv.Rules[j].ID = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Rules[j].ID)
 		}
 
 		// Prefix edges with "post_".
 		for j := range m.Runs[i].PostProv.Edges {
-			m.Runs[i].PostProv.Edges[j].From = fmt.Sprintf("post_%s", m.Runs[i].PostProv.Edges[j].From)
-			m.Runs[i].PostProv.Edges[j].To = fmt.Sprintf("post_%s", m.Runs[i].PostProv.Edges[j].To)
+			m.Runs[i].PostProv.Edges[j].From = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Edges[j].From)
+			m.Runs[i].PostProv.Edges[j].To = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Edges[j].To)
 		}
 	}
 

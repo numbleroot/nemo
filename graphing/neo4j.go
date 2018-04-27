@@ -293,27 +293,48 @@ func (n *Neo4J) LoadNaiveProv(runs []*faultinjectors.Run) error {
 // CreateNaiveDiffProv
 func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint) error {
 
-	stmtDiff, err := n.Conn1.PrepareNeo("CALL apoc.export.cypher.query(\"MATCH (failed:Goal {run: {run}, condition: 'post'}) WITH collect(failed.label) AS failGoals MATCH pathSucc = (root:Goal {run: 0, condition: 'post'})-[*0..]->(goal:Goal {run: 0, condition: 'post'}) WHERE NOT root.label IN failGoals AND NOT goal.label IN failGoals RETURN pathSucc;\", \"{path}\", {format:\"plain\",cypherFormat:\"create\"}) YIELD file, source, format, nodes, relationships, properties, time RETURN file, source, format, nodes, relationships, properties, time;")
-	if err != nil {
-		return err
-	}
+	exportQuery := "CALL apoc.export.cypher.query(\"MATCH (failed:Goal {run: ###RUN###, condition: 'post'}) WITH collect(failed.label) AS failGoals MATCH pathSucc = (root:Goal {run: 0, condition: 'post'})-[*0..]->(goal:Goal {run: 0, condition: 'post'}) WHERE NOT root.label IN failGoals AND NOT goal.label IN failGoals RETURN pathSucc;\", \"/tmp/export-differential-provenance\", {format:\"plain\",cypherFormat:\"create\"}) YIELD file, source, format, nodes, relationships, properties, time RETURN file, source, format, nodes, relationships, properties, time;"
 
 	for i := range failedRuns {
 
-		res, err := stmtDiff.ExecNeo(map[string]interface{}{
-			"run":  failedRuns[i],
-			"path": "/tmp/testomestopesto",
-		})
+		diffRunID := 1000 + failedRuns[i]
+
+		// Replace failed run in skeleton query.
+		tmpExportQuery := strings.Replace(exportQuery, "###RUN###", fmt.Sprintf("%d", failedRuns[i]), -1)
+		_, err := n.Conn1.ExecNeo(tmpExportQuery, nil)
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("RES: '%#v'\n", res)
-	}
+		// Replace run ID part of node ID in saved queries.
+		sedIDLong := fmt.Sprintf("s/`id`:\"run_0/`id`:\"run_%d/g", diffRunID)
+		cmd := exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", sedIDLong, "/tmp/export-differential-provenance")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return err
+		}
 
-	err = stmtDiff.Close()
-	if err != nil {
-		return err
+		if strings.TrimSpace(string(out)) != "" {
+			return fmt.Errorf("Wrong return value from docker-compose exec sed run ID command: %s", out)
+		}
+
+		// Replace run ID in saved queries.
+		sedIDShort := fmt.Sprintf("s/`run`:0/`run`:%d/g", diffRunID)
+		cmd = exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", sedIDShort, "/tmp/export-differential-provenance")
+		out, err = cmd.CombinedOutput()
+		if err != nil {
+			return err
+		}
+
+		if strings.TrimSpace(string(out)) != "" {
+			return fmt.Errorf("Wrong return value from docker-compose exec sed run ID command: %s", out)
+		}
+
+		// Import modified difference graph as new one.
+		_, err = n.Conn1.ExecNeo("CALL apoc.cypher.runFile(\"/tmp/export-differential-provenance\")", nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
