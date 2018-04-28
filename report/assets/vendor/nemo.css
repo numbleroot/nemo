@@ -1,6 +1,5 @@
-.container-fluid {
-    margin: 20px auto 10px;
-}
+h1, h2, h3, h4 { margin: 10px 0 15px; }
+.container-fluid { margin: 20px auto 30px; }
 
 .help-block {
     display: block;

@@ -3,10 +3,12 @@
 
     <head>
 
-        <meta charset = "utf-8">
-        <title>Nemo - Debugging results</title>
-        <link rel = "stylesheet" href = "vendor/bootstrap.min.css">
-        <link rel = "stylesheet" href = "vendor/nemo.css">
+        <meta charset = "utf-8" />
+        <title>Nemo - Debugging Results</title>
+        <meta name = "viewport" content = "width=device-width, initial-scale=1, shrink-to-fit=no" />
+        <link rel = "stylesheet" href = "vendor/bootstrap.min.css" />
+        <link rel = "stylesheet" href = "vendor/fontawesome-all.min.css" />
+        <link rel = "stylesheet" href = "vendor/nemo.css" />
 
     </head>
 
@@ -23,40 +25,28 @@
 
         <div class = "container-fluid">
 
-            <div class = "debugging-wrapper">
+            <h3>Specification Provenance (Pre <i class = "fas fa-long-arrow-alt-right"></i> Post)</h3>
 
-                <div class = "box-left">
-                    <h2>Debugging</h2>
-                    <div id = "debugging-pre"></div>
-                    <div id = "debugging-post"></div>
+            <div class = "row">
+
+                <div class = "col-md">
+
+                    <h4>Precondition</h4>
+
+                    <div id = "prov-pre"></div>
+
                 </div>
 
-                <div class = "box-right">
-                    <img src "" class = "img-responsive" />
+                <div class = "col-md">
+
+                    <h4>Postcondition</h4>
+
+                    <div id = "prov-post"></div>
+
                 </div>
 
             </div>
 
-        </div>
-
-        <div class = "container-fluid">
-            <h2>Space-Time Diagram</h2>
-            <div id = "spacetime"><img src = "" class = "img-responsive" /></div>
-        </div>
-
-        <div class = "container-fluid">
-            <h2>Pre Table Provenance</h2>
-            <div id = "pre-provenance"><img src = "" class = "img-responsive" /></div>
-        </div>
-
-        <div class = "container-fluid">
-            <h2>Post Table Provenance</h2>
-            <div id = "post-provenance"><img src = "" class = "img-responsive" /></div>
-        </div>
-
-        <div class = "container-fluid">
-            <h2>Table Contents</h2>
-            <div id = "details-area"><div id = "table-dumps"></div></div>
         </div>
 
     </body>
@@ -72,18 +62,54 @@
             var runs = [];
             var selectedRun = null;
 
-            // Display debugging suggestion if available.
-            $.get("debugging.txt", function(content, status) {
-                if (status == "success") {
-                    d3.select("#debugging-pre").html(content);
+            var refreshRunsTable = function() {
+
+                var tr = tbody.selectAll("tr").data(runs).enter().append("tr")
+                        .on("click", function() {
+                            if(selectedRun !== null) {
+                                d3.select(selectedRun).classed("active", false);
+                            }
+                            d3.select(this).classed("active", true);
+                            selectedRun = this;
+                            displaySelectedRun(d3.select(this).data()[0]);
+                        });
+
+                var td = tr.selectAll("td")
+                        .data(function(run) {
+                            return [
+                                run.iteration,
+                                formatStatus(run.status),
+                                run.failureSpec.crashes.map(formatCrash).join(", "),
+                                run.failureSpec.omissions.map(formatMessageLoss).join(", ")
+                            ];
+                        }).enter().append("td")
+                        .html(function(d) {
+                            return d;
+                        });
+            };
+
+            var formatCrash = function(crash) {
+                return crash.node + "@" + crash.time;
+            };
+
+            var formatMessageLoss = function(loss) {
+                return loss.from + " ==> " + loss.to + " @ " + loss.time;
+            };
+
+            var formatStatus = function(status) {
+                if(status == "success") {
+                    return '<span class = "glyphicon glyphicon-ok text-success"> success</span>'
                 } else {
-                    console.log("Could not load debugging.txt");
+                    return '<span class = "glyphicon glyphicon-remove text-danger"> failure</span>'
                 }
-            }, "text");
+            };
 
-            d3.json("runs.json", function(error, json) {
+            var displaySelectedRun = function(newRun) {
+                console.log("Input displaying here!")
+                console.log(newRun);
+            };
 
-                var tableDumps = d3.select("#table-dumps");
+            d3.json("debugging.json", function(error, json) {
 
                 var runsTable = d3.select("#runs-table").append("table").attr("class", "table table-sm table-hover");
                 thead = runsTable.append("thead").append("tr");
@@ -101,88 +127,10 @@
                     }
                 });
 
-                var refreshRunsTable = function() {
-                    var tr = tbody.selectAll("tr")
-                            .data(runs)
-                            .enter().append("tr")
-                            .on("click", function () {
-                                if (selectedRun !== null)
-                                    d3.select(selectedRun).classed("active", false);
-                                d3.select(this).classed("active", true);
-                                selectedRun = this;
-                                displaySelectedRun(d3.select(this).data()[0]);
-                            });
+                json.forEach(function(run) {
+                    runs.push(run);
+                });
 
-                    var td = tr.selectAll("td")
-                            .data(function (run) {
-                                return [
-                                    run.iteration,
-                                    formatStatus(run.status),
-                                    run.failureSpec.crashes.map(formatCrash).join(", "),
-                                    run.failureSpec.omissions.map(formatMessageLoss).join(", ")];
-                            })
-                            .enter().append("td")
-                            .html(function (d) { return d; });
-                };
-
-                var formatCrash = function(crash) {
-                    return crash.node + "@" + crash.time;
-                };
-
-                var formatMessageLoss = function(loss) {
-                    return loss.from + " ==> " + loss.to + " @ " + loss.time;
-                };
-
-                var formatStatus = function(status) {
-                    if (status == "success") {
-                        return '<span class = "glyphicon glyphicon-ok text-success"> success</span>'
-                    } else {
-                        return '<span class = "glyphicon glyphicon-remove text-danger"> failure</span>'
-                    }
-                };
-
-                var displaySelectedRun = function(newRun) {
-
-                    tableDumps.selectAll("div").data([]).exit().remove();
-
-                    var nonProvTables = d3.entries(newRun.model.tables).filter(function(t) {
-                        return t.key != "clock" && t.key.indexOf("_prov") == -1;
-                    });
-
-                    var tableDivs = tableDumps.selectAll("div")
-                            .data(nonProvTables)
-                            .enter().append("div");
-
-                    tableDivs.selectAll("h3")
-                            .data(function(t) { return [t]; })
-                            .enter().append("h3").text(function (t) { return t.key; });
-
-                    var tables = tableDivs.selectAll("table")
-                            .data(function(t) { return [t]; })
-                            .enter().append("table").attr("class", "table table-sm table-bordered table-hover");
-
-                    var tBodies = tables.selectAll("tbody")
-                            .data(function (t) {
-                                return d3.nest().key(function(d) {
-                                    return parseInt(d[d.length - 1]);
-                                })
-                                .sortKeys(function(x, y) { return d3.ascending(parseInt(x), parseInt(y));})
-                                .entries(t.value);
-                            })
-                            .enter().append("tbody");
-
-                    var rows = tBodies.selectAll("tr").data(function (t) {
-                                return t.values.sort(d3.ascending);
-                            })
-                            .enter().append("tr");
-
-                    var cols = rows.selectAll("td").data(function(d) { return d; })
-                            .enter().append("td")
-                            .text(function(d) { return d; });
-                };
-
-
-                json.forEach(function (run) { runs.push(run); });
                 refreshRunsTable();
             });
 

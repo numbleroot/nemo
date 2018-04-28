@@ -33,6 +33,7 @@ type GraphDatabase interface {
 // Reporter
 type Reporter interface {
 	CopyFaultInjReport(string, string) error
+	GenerateReport() error
 }
 
 // Structs.
@@ -175,6 +176,10 @@ func main() {
 	// Generate report webpage containing
 	// all insights and suggestions.
 	// TODO: Implement this.
+	err = debugRun.reporter.GenerateReport()
+	if err != nil {
+		log.Fatalf("Failed to generate debugging report: %v", err)
+	}
 
 	fmt.Printf("All done! Find the debug report here: %s\n\n", filepath.Join(debugRun.thisResultsDir, "index.html"))
 }
