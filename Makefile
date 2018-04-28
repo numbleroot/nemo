@@ -4,7 +4,7 @@ all: clean build
 
 clean:
 	go clean -i ./...
-	sudo rm -rf results/ tmp/
+	sudo rm -rf tmp/
 	sudo mkdir tmp
 
 deps:
