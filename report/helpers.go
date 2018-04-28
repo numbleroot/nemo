@@ -7,10 +7,12 @@ import (
 	"os/exec"
 )
 
-// CopyFaultInjReport
-func (r *Report) CopyFaultInjReport(srcDir string, resDir string) error {
+// Functions.
 
-	fmt.Printf("Copying fault injector's results...")
+// copyDir
+func copyDir(srcDir string, resDir string) error {
+
+	fmt.Printf("Copying %s to %s...", srcDir, resDir)
 	cmd := exec.Command("cp", "-r", srcDir, resDir)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -18,7 +20,7 @@ func (r *Report) CopyFaultInjReport(srcDir string, resDir string) error {
 	}
 
 	if strings.TrimSpace(string(out)) != "" {
-		return fmt.Errorf("Wrong return value from copy command for results: %s", out)
+		return fmt.Errorf("Wrong return value from copy command for directory: %s", out)
 	}
 	fmt.Printf(" done\n\n")
 

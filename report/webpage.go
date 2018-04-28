@@ -1,6 +1,10 @@
 package report
 
 import (
+	"os"
+
+	"path/filepath"
+
 	fi "github.com/numbleroot/nemo/faultinjectors"
 )
 
@@ -22,6 +26,19 @@ type Report struct {
 // Functions.
 
 // GenerateReport
-func (r *Report) GenerateReport() error {
+func (r *Report) GenerateReport(wrkDir string, allResDir string, thisResDir string) error {
+
+	// Copy webpage template to result directory.
+	err := copyDir(filepath.Join(wrkDir, "report", "assets"), allResDir)
+	if err != nil {
+		return err
+	}
+
+	// Rename to final results directory name.
+	err = os.Rename(filepath.Join(allResDir, "assets"), thisResDir)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

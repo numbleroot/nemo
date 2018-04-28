@@ -32,22 +32,19 @@ type GraphDatabase interface {
 
 // Reporter
 type Reporter interface {
-	CopyFaultInjReport(string, string) error
-	GenerateReport() error
+	GenerateReport(string, string, string) error
 }
 
 // Structs.
 
 // DebugRun
 type DebugRun struct {
-	workDir         string
-	allResultsDir   string
-	thisResultsDir  string
-	tmpGraphDBDir   string
-	tmpGraphLogsDir string
-	faultInj        FaultInjector
-	graphDB         GraphDatabase
-	reporter        Reporter
+	workDir        string
+	allResultsDir  string
+	thisResultsDir string
+	faultInj       FaultInjector
+	graphDB        GraphDatabase
+	reporter       Reporter
 }
 
 func main() {
@@ -64,7 +61,6 @@ func main() {
 	}
 
 	graphDBConn := *graphDBConnFlag
-	// _ = *graphDBConnFlag
 
 	// Determine current working directory.
 	curDir, err := filepath.Abs(".")
@@ -74,11 +70,9 @@ func main() {
 
 	// Start building structs.
 	debugRun := &DebugRun{
-		workDir:         curDir,
-		allResultsDir:   filepath.Join(curDir, "results"),
-		thisResultsDir:  filepath.Join(curDir, "results", filepath.Base(faultInjOut)),
-		tmpGraphDBDir:   filepath.Join(curDir, "tmp", "db"),
-		tmpGraphLogsDir: filepath.Join(curDir, "tmp", "logs"),
+		workDir:        curDir,
+		allResultsDir:  filepath.Join(curDir, "results"),
+		thisResultsDir: filepath.Join(curDir, "results", filepath.Base(faultInjOut)),
 		faultInj: &faultinjectors.Molly{
 			Run:       filepath.Base(faultInjOut),
 			OutputDir: faultInjOut,
@@ -88,7 +82,7 @@ func main() {
 	}
 
 	// Ensure the results directory for this debug run exists.
-	err = os.MkdirAll(debugRun.thisResultsDir, 0755)
+	err = os.MkdirAll(debugRun.allResultsDir, 0755)
 	if err != nil {
 		log.Fatalf("Could not ensure resDir exists: %v", err)
 	}
@@ -97,17 +91,6 @@ func main() {
 	err = os.RemoveAll(filepath.Join(curDir, "tmp"))
 	if err != nil {
 		log.Fatalf("Could not remove temporary graph database directory: %v", err)
-	}
-
-	// Make sure temporary directory exists for graph data.
-	err = os.MkdirAll(debugRun.tmpGraphDBDir, 0755)
-	if err != nil {
-		log.Fatalf("Could not ensure ./tmp/db exists: %v", err)
-	}
-
-	err = os.MkdirAll(debugRun.tmpGraphLogsDir, 0755)
-	if err != nil {
-		log.Fatalf("Could not ensure ./tmp/logs exists: %v", err)
 	}
 
 	// Extract, transform, and load fault injector output.
@@ -119,7 +102,6 @@ func main() {
 	// Graph queries.
 
 	// Connect to graph database docker container.
-
 	err = debugRun.graphDB.InitGraphDB(graphDBConn)
 	if err != nil {
 		log.Fatalf("Failed to initialize connection to graph database: %v", err)
@@ -166,17 +148,9 @@ func main() {
 
 	// Reporting.
 
-	// Copy current fault injector's output.
-	// TODO: Supersede this with dedicated website.
-	err = debugRun.reporter.CopyFaultInjReport(faultInjOut, debugRun.allResultsDir)
-	if err != nil {
-		log.Fatalf("Failed to copy fault injection report to results directory: %v", err)
-	}
-
 	// Generate report webpage containing
 	// all insights and suggestions.
-	// TODO: Implement this.
-	err = debugRun.reporter.GenerateReport()
+	err = debugRun.reporter.GenerateReport(debugRun.workDir, debugRun.allResultsDir, debugRun.thisResultsDir)
 	if err != nil {
 		log.Fatalf("Failed to generate debugging report: %v", err)
 	}

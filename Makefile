@@ -4,8 +4,8 @@ all: clean build
 
 clean:
 	go clean -i ./...
-	sudo rm -rf tmp/
-	sudo mkdir tmp
+	rm -rf results/*
+	sudo rm -rf tmp/*
 
 deps:
 	rm -rf vendor
