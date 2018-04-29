@@ -1,8 +1,12 @@
 package report
 
 import (
+	"fmt"
 	"os"
+	"strings"
 
+	"io/ioutil"
+	"os/exec"
 	"path/filepath"
 
 	fi "github.com/numbleroot/nemo/faultinjectors"
@@ -20,13 +24,18 @@ type Run struct {
 
 // Report
 type Report struct {
-	Runs []*Run `json:"runs"`
+	resDir     string
+	figuresDir string
+	Runs       []*Run `json:"runs"`
 }
 
 // Functions.
 
-// GenerateReport
-func (r *Report) GenerateReport(wrkDir string, allResDir string, thisResDir string) error {
+// Prepare
+func (r *Report) Prepare(wrkDir string, allResDir string, thisResDir string) error {
+
+	r.resDir = thisResDir
+	r.figuresDir = filepath.Join(thisResDir, "figures")
 
 	// Copy webpage template to result directory.
 	err := copyDir(filepath.Join(wrkDir, "report", "assets"), allResDir)
@@ -38,6 +47,47 @@ func (r *Report) GenerateReport(wrkDir string, allResDir string, thisResDir stri
 	err = os.Rename(filepath.Join(allResDir, "assets"), thisResDir)
 	if err != nil {
 		return err
+	}
+
+	// Create directory to hold diagrams.
+	err = os.MkdirAll(r.figuresDir, 0755)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GenerateGraphs
+func (r *Report) GenerateGraphs(names []uint, dotProv []string) error {
+
+	// We require that each element in dotProv
+	// has a corresponding element in names.
+	if len(names) != len(dotProv) {
+		return fmt.Errorf("Unequal number of file names and DOT graph strings")
+	}
+
+	for i := range dotProv {
+
+		dotFilePath := filepath.Join(r.figuresDir, fmt.Sprintf("run_%d_diff_post_prov.dot", names[i]))
+		svgFilePath := filepath.Join(r.figuresDir, fmt.Sprintf("run_%d_diff_post_prov.svg", names[i]))
+
+		// Write-out file containing DOT string.
+		err := ioutil.WriteFile(dotFilePath, []byte(dotProv[i]), 0644)
+		if err != nil {
+			return err
+		}
+
+		// Run SVG generator on DOT file.
+		cmd := exec.Command("dot", "-Tsvg", "-o", svgFilePath, dotFilePath)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return err
+		}
+
+		if strings.TrimSpace(string(out)) != "" {
+			return fmt.Errorf("Wrong return value from SVG generation command: %s", out)
+		}
 	}
 
 	return nil

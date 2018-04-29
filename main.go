@@ -27,12 +27,13 @@ type GraphDatabase interface {
 	InitGraphDB(string) error
 	CloseDB() error
 	LoadNaiveProv([]*faultinjectors.Run) error
-	CreateNaiveDiffProv(bool, []uint) error
+	CreateNaiveDiffProv(bool, []uint) ([]string, error)
 }
 
 // Reporter
 type Reporter interface {
-	GenerateReport(string, string, string) error
+	Prepare(string, string, string) error
+	GenerateGraphs([]uint, []string) error
 }
 
 // Structs.
@@ -87,12 +88,6 @@ func main() {
 		log.Fatalf("Could not ensure resDir exists: %v", err)
 	}
 
-	// Empty temporary directory for graph data.
-	err = os.RemoveAll(filepath.Join(curDir, "tmp"))
-	if err != nil {
-		log.Fatalf("Could not remove temporary graph database directory: %v", err)
-	}
-
 	// Extract, transform, and load fault injector output.
 	err = debugRun.faultInj.LoadOutput()
 	if err != nil {
@@ -133,7 +128,7 @@ func main() {
 
 	// Create differential provenance graphs
 	// for postcondition provenance.
-	err = debugRun.graphDB.CreateNaiveDiffProv(false, debugRun.faultInj.GetFailedRuns())
+	naiveDiffProvDots, err := debugRun.graphDB.CreateNaiveDiffProv(false, debugRun.faultInj.GetFailedRuns())
 	if err != nil {
 		log.Fatalf("Could not create the naive differential provenance (bad - good): %v", err)
 	}
@@ -148,11 +143,17 @@ func main() {
 
 	// Reporting.
 
-	// Generate report webpage containing
+	// Prepare report webpage containing
 	// all insights and suggestions.
-	err = debugRun.reporter.GenerateReport(debugRun.workDir, debugRun.allResultsDir, debugRun.thisResultsDir)
+	err = debugRun.reporter.Prepare(debugRun.workDir, debugRun.allResultsDir, debugRun.thisResultsDir)
 	if err != nil {
-		log.Fatalf("Failed to generate debugging report: %v", err)
+		log.Fatalf("Failed to prepare debugging report: %v", err)
+	}
+
+	// Generate and write-out graphs.
+	err = debugRun.reporter.GenerateGraphs(debugRun.faultInj.GetFailedRuns(), naiveDiffProvDots)
+	if err != nil {
+		log.Fatalf("Could not generate graphs for report: %v", err)
 	}
 
 	fmt.Printf("All done! Find the debug report here: %s\n\n", filepath.Join(debugRun.thisResultsDir, "index.html"))
