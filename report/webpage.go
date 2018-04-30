@@ -59,18 +59,18 @@ func (r *Report) Prepare(wrkDir string, allResDir string, thisResDir string) err
 }
 
 // GenerateGraphs
-func (r *Report) GenerateGraphs(names []uint, dotProv []string) error {
+func (r *Report) GenerateGraphs(iters []uint, name string, dotProv []string) error {
 
 	// We require that each element in dotProv
 	// has a corresponding element in names.
-	if len(names) != len(dotProv) {
-		return fmt.Errorf("Unequal number of file names and DOT graph strings")
+	if len(iters) != len(dotProv) {
+		return fmt.Errorf("Unequal number of iteration numbers and DOT graph strings")
 	}
 
 	for i := range dotProv {
 
-		dotFilePath := filepath.Join(r.figuresDir, fmt.Sprintf("run_%d_diff_post_prov.dot", names[i]))
-		svgFilePath := filepath.Join(r.figuresDir, fmt.Sprintf("run_%d_diff_post_prov.svg", names[i]))
+		dotFilePath := filepath.Join(r.figuresDir, fmt.Sprintf("run_%d_%s.dot", iters[i], name))
+		svgFilePath := filepath.Join(r.figuresDir, fmt.Sprintf("run_%d_%s.svg", iters[i], name))
 
 		// Write-out file containing DOT string.
 		err := ioutil.WriteFile(dotFilePath, []byte(dotProv[i]), 0644)

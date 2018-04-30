@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
-
-	"os/exec"
+	"sync"
 
 	neo4j "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
@@ -23,77 +21,7 @@ type Neo4J struct {
 
 // Functions.
 
-// InitGraphDB
-func (n *Neo4J) InitGraphDB(boltURI string) error {
-
-	// Run the docker start command.
-	fmt.Printf("Starting docker containers...")
-	cmd := exec.Command("sudo", "docker-compose", "-f", "docker-compose.yml", "up", "-d")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
-
-	if !strings.Contains(string(out), "done") {
-		return fmt.Errorf("Wrong return value from docker-compose up command: %s", out)
-	}
-	fmt.Printf(" done\n")
-
-	// Wait long enough for graph database to be up.
-	time.Sleep(5 * time.Second)
-
-	driver := neo4j.NewDriver()
-
-	// Connect to bolt endpoint.
-	c1, err := driver.OpenNeo(boltURI)
-	if err != nil {
-		return err
-	}
-
-	c2, err := driver.OpenNeo(boltURI)
-	if err != nil {
-		return err
-	}
-
-	n.Conn1 = c1
-	n.Conn2 = c2
-
-	fmt.Println()
-
-	return nil
-}
-
-// CloseDB properly shuts down the Neo4J connection.
-func (n *Neo4J) CloseDB() error {
-
-	err := n.Conn1.Close()
-	if err != nil {
-		return err
-	}
-
-	err = n.Conn2.Close()
-	if err != nil {
-		return err
-	}
-
-	time.Sleep(2 * time.Second)
-
-	// Shut down docker container.
-	fmt.Printf("Shutting down docker containers...")
-	cmd := exec.Command("sudo", "docker-compose", "-f", "docker-compose.yml", "down")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
-
-	if !strings.Contains(string(out), "done") {
-		return fmt.Errorf("Wrong return value from docker-compose down command: %s", out)
-	}
-	fmt.Printf(" done\n")
-
-	return nil
-}
-
+// loadProv
 func (n *Neo4J) loadProv(iteration uint, provCond string, provData *faultinjectors.ProvData) error {
 
 	stmtGoal, err := n.Conn1.PrepareNeo("CREATE (goal:Goal {id: {id}, run: {run}, condition: {condition}, label: {label}, table: {table}, type: {type}});")
@@ -112,7 +40,7 @@ func (n *Neo4J) loadProv(iteration uint, provCond string, provData *faultinjecto
 			"condition": provCond,
 			"label":     provData.Goals[j].Label,
 			"table":     provData.Goals[j].Table,
-			"type":      "single",
+			"type":      provData.Goals[j].Type,
 		})
 		if err != nil {
 			return err
@@ -166,7 +94,7 @@ func (n *Neo4J) loadProv(iteration uint, provCond string, provData *faultinjecto
 			"condition": provCond,
 			"label":     provData.Rules[j].Label,
 			"table":     provData.Rules[j].Table,
-			"type":      "single",
+			"type":      provData.Rules[j].Type,
 		})
 		if err != nil {
 			return err
@@ -292,99 +220,107 @@ func (n *Neo4J) LoadNaiveProv(runs []*faultinjectors.Run) error {
 	return nil
 }
 
-// CreateNaiveDiffProv
-func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint) ([]string, error) {
+// PullPrePostProv
+func (n *Neo4J) PullPrePostProv(runs []*faultinjectors.Run) ([]string, []string, error) {
 
-	exportQuery := "CALL apoc.export.cypher.query(\"MATCH (failed:Goal {run: ###RUN###, condition: 'post'}) WITH collect(failed.label) AS failGoals MATCH pathSucc = (root:Goal {run: 0, condition: 'post'})-[*0..]->(goal:Goal {run: 0, condition: 'post'}) WHERE NOT root.label IN failGoals AND NOT goal.label IN failGoals RETURN pathSucc;\", \"/tmp/export-differential-provenance\", {format:\"plain\",cypherFormat:\"create\"}) YIELD file, source, format, nodes, relationships, properties, time RETURN file, source, format, nodes, relationships, properties, time;"
+	mu := &sync.Mutex{}
 
-	dotStrings := make([]string, len(failedRuns))
+	preDotStrings := make([]string, len(runs))
+	postDotStrings := make([]string, len(runs))
 
-	for i := range failedRuns {
+	// Query for imported correctness condition provenance.
+	stmtPreProv, err := n.Conn1.PrepareNeo("MATCH path = ({run: {run}, condition: \"pre\"})-[:DUETO*1]->({run: {run}, condition: \"pre\"}) RETURN path;")
+	if err != nil {
+		return nil, nil, err
+	}
 
-		diffRunID := 1000 + failedRuns[i]
+	stmtPostProv, err := n.Conn2.PrepareNeo("MATCH path = ({run: {run}, condition: \"post\"})-[:DUETO*1]->({run: {run}, condition: \"post\"}) RETURN path;")
+	if err != nil {
+		return nil, nil, err
+	}
 
-		// Replace failed run in skeleton query.
-		tmpExportQuery := strings.Replace(exportQuery, "###RUN###", fmt.Sprintf("%d", failedRuns[i]), -1)
-		_, err := n.Conn1.ExecNeo(tmpExportQuery, nil)
-		if err != nil {
-			return nil, err
-		}
+	for i := range runs {
 
-		// Replace run ID part of node ID in saved queries.
-		sedIDLong := fmt.Sprintf("s/`id`:\"run_0/`id`:\"run_%d/g", diffRunID)
-		cmd := exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", sedIDLong, "/tmp/export-differential-provenance")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			return nil, err
-		}
+		preEdges := make([]graph.Path, 0, 20)
+		postEdges := make([]graph.Path, 0, 20)
 
-		if strings.TrimSpace(string(out)) != "" {
-			return nil, fmt.Errorf("Wrong return value from docker-compose exec sed run ID command: %s", out)
-		}
-
-		// Replace run ID in saved queries.
-		sedIDShort := fmt.Sprintf("s/`run`:0/`run`:%d/g", diffRunID)
-		cmd = exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", sedIDShort, "/tmp/export-differential-provenance")
-		out, err = cmd.CombinedOutput()
-		if err != nil {
-			return nil, err
-		}
-
-		if strings.TrimSpace(string(out)) != "" {
-			return nil, fmt.Errorf("Wrong return value from docker-compose exec sed run ID command: %s", out)
-		}
-
-		// Import modified difference graph as new one.
-		_, err = n.Conn1.ExecNeo("CALL apoc.cypher.runFile(\"/tmp/export-differential-provenance\")", nil)
-		if err != nil {
-			return nil, err
-		}
-
-		// Query for imported differential provenance.
-		stmtDiff, err := n.Conn1.PrepareNeo("MATCH path = ({run: {run}})-[:DUETO*1]->({run: {run}}) RETURN path;")
-		if err != nil {
-			return nil, err
-		}
-
-		edgesRaw, err := stmtDiff.QueryNeo(map[string]interface{}{
-			"run": diffRunID,
+		mu.Lock()
+		preEdgesRaw, err := stmtPreProv.QueryNeo(map[string]interface{}{
+			"run": runs[i].Iteration,
 		})
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-
-		edges := make([]graph.Path, 0, 10)
+		mu.Unlock()
 
 		for err == nil {
 
-			var edgeRaw []interface{}
+			var preEdgeRaw []interface{}
 
-			edgeRaw, _, err = edgesRaw.NextNeo()
+			preEdgeRaw, _, err = preEdgesRaw.NextNeo()
 			if err != nil && err != io.EOF {
-				return nil, err
+				return nil, nil, err
 			} else if err == nil {
 
 				// Type-assert raw edge into well-defined struct.
-				edge := edgeRaw[0].(graph.Path)
+				edge := preEdgeRaw[0].(graph.Path)
 
 				// Append to slice of edges.
-				edges = append(edges, edge)
+				preEdges = append(preEdges, edge)
 			}
 		}
 
 		// Pass to DOT string generator.
-		dotString, err := createDOT(edges)
+		preDotString, err := createDOT(preEdges)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		err = stmtDiff.Close()
+		mu.Lock()
+		postEdgesRaw, err := stmtPostProv.QueryNeo(map[string]interface{}{
+			"run": runs[i].Iteration,
+		})
 		if err != nil {
-			return nil, err
+			return nil, nil, err
+		}
+		mu.Unlock()
+
+		for err == nil {
+
+			var postEdgeRaw []interface{}
+
+			postEdgeRaw, _, err = postEdgesRaw.NextNeo()
+			if err != nil && err != io.EOF {
+				return nil, nil, err
+			} else if err == nil {
+
+				// Type-assert raw edge into well-defined struct.
+				edge := postEdgeRaw[0].(graph.Path)
+
+				// Append to slice of edges.
+				postEdges = append(postEdges, edge)
+			}
 		}
 
-		dotStrings[i] = dotString
+		// Pass to DOT string generator.
+		postDotString, err := createDOT(postEdges)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		preDotStrings[i] = preDotString
+		postDotStrings[i] = postDotString
 	}
 
-	return dotStrings, nil
+	err = stmtPreProv.Close()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = stmtPostProv.Close()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return preDotStrings, postDotStrings, nil
 }

@@ -177,8 +177,8 @@
                     d3.select("#diff-post-prov img").remove();
 
                     // Add currently selected figures.
-                    d3.select("#post-prov-good").append("img").attr("src", "figures/run_0_post_provenance.svg");
-                    d3.select("#post-prov-bad").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_provenance.svg");
+                    d3.select("#post-prov-good").append("img").attr("src", "figures/run_0_post_prov.svg");
+                    d3.select("#post-prov-bad").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov.svg");
                     d3.select("#diff-post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_diff_post_prov.svg");
 
                     // Make relevant areas visible.

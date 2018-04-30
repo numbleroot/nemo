@@ -34,8 +34,42 @@ func createDOT(edges []graph.Path) (string, error) {
 		fromAttrs := make(map[string]string)
 		fromAttrs["label"] = fmt.Sprintf("\"%s\"", edges[i].Nodes[0].Properties["label"])
 
+		if edges[i].Nodes[0].Properties["type"] == "async" {
+			fromAttrs["style"] = "\"filled, bold\""
+			fromAttrs["color"] = "\"black\""
+			fromAttrs["fontcolor"] = "\"black\""
+			fromAttrs["fillcolor"] = "\"steelblue1\""
+		} else if edges[i].Nodes[0].Properties["type"] == "next" {
+			fromAttrs["style"] = "\"filled, solid\""
+			fromAttrs["color"] = "\"gray50\""
+			fromAttrs["fontcolor"] = "\"gray50\""
+			fromAttrs["fillcolor"] = "\"limegreen\""
+		} else {
+			fromAttrs["style"] = "\"filled, solid\""
+			fromAttrs["color"] = "\"gray50\""
+			fromAttrs["fontcolor"] = "\"gray50\""
+			fromAttrs["fillcolor"] = "\"white\""
+		}
+
 		toAttrs := make(map[string]string)
 		toAttrs["label"] = fmt.Sprintf("\"%s\"", edges[i].Nodes[1].Properties["label"])
+
+		if edges[i].Nodes[1].Properties["type"] == "async" {
+			toAttrs["style"] = "\"filled, bold\""
+			toAttrs["color"] = "\"black\""
+			toAttrs["fontcolor"] = "\"black\""
+			toAttrs["fillcolor"] = "\"steelblue1\""
+		} else if edges[i].Nodes[1].Properties["type"] == "next" {
+			toAttrs["style"] = "\"filled, solid\""
+			toAttrs["color"] = "\"gray50\""
+			toAttrs["fontcolor"] = "\"gray50\""
+			toAttrs["fillcolor"] = "\"limegreen\""
+		} else {
+			toAttrs["style"] = "\"filled, solid\""
+			toAttrs["color"] = "\"gray50\""
+			toAttrs["fontcolor"] = "\"gray50\""
+			toAttrs["fillcolor"] = "\"white\""
+		}
 
 		// Add first node with all info from query.
 		err := dotGraph.AddNode("dataflow", from, fromAttrs)

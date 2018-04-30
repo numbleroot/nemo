@@ -52,6 +52,7 @@ type Node struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
 	Table string `json:"table"`
+	Type  string `json:"-"`
 }
 
 // Edge
@@ -69,22 +70,24 @@ type ProvData struct {
 
 // Run
 type Run struct {
-	Iteration   uint         `json:"iteration"`
-	Status      string       `json:"status"`
-	FailureSpec *FailureSpec `json:"failureSpec"`
-	Model       *Model       `json:"model"`
-	Messages    []*Message   `json:"messages"`
-	PreProv     *ProvData    `json:"-"`
-	PostProv    *ProvData    `json:"-"`
+	Iteration     uint            `json:"iteration"`
+	Status        string          `json:"status"`
+	FailureSpec   *FailureSpec    `json:"failureSpec"`
+	Model         *Model          `json:"model"`
+	Messages      []*Message      `json:"messages"`
+	MessagesIndex map[string]bool `json:"-"`
+	PreProv       *ProvData       `json:"-"`
+	PostProv      *ProvData       `json:"-"`
 }
 
 // Molly
 type Molly struct {
-	Run         string
-	OutputDir   string
-	Runs        []*Run
-	SuccessRuns []uint
-	FailedRuns  []uint
+	Run              string
+	OutputDir        string
+	Runs             []*Run
+	RunsIters        []uint
+	SuccessRunsIters []uint
+	FailedRunsIters  []uint
 }
 
 // Functions.
@@ -104,18 +107,25 @@ func (m *Molly) LoadOutput() error {
 		return fmt.Errorf("Failed to unmarshal JSON content to runs structure: %v\n", err)
 	}
 
-	m.SuccessRuns = make([]uint, 0, len(m.Runs))
-	m.FailedRuns = make([]uint, 0, 3)
+	m.RunsIters = make([]uint, len(m.Runs))
+	m.SuccessRunsIters = make([]uint, 0, len(m.Runs))
+	m.FailedRunsIters = make([]uint, 0, 3)
 
 	// Load pre- and post-provenance for each iteration.
 	for i := range m.Runs {
 
 		// Note return status of fault injection
 		// run in separate structure.
+		m.RunsIters[i] = m.Runs[i].Iteration
 		if m.Runs[i].Status == "success" {
-			m.SuccessRuns = append(m.SuccessRuns, m.Runs[i].Iteration)
+			m.SuccessRunsIters = append(m.SuccessRunsIters, m.Runs[i].Iteration)
 		} else {
-			m.FailedRuns = append(m.FailedRuns, m.Runs[i].Iteration)
+			m.FailedRunsIters = append(m.FailedRunsIters, m.Runs[i].Iteration)
+		}
+
+		m.Runs[i].MessagesIndex = make(map[string]bool)
+		for j := range m.Runs[i].Messages {
+			m.Runs[i].MessagesIndex[m.Runs[i].Messages[j].Content] = true
 		}
 
 		preProvFile := filepath.Join(m.OutputDir, fmt.Sprintf("run_%d_pre_provenance.json", i))
@@ -131,14 +141,38 @@ func (m *Molly) LoadOutput() error {
 			return fmt.Errorf("Failed to unmarshal JSON pre-provenance data: %v\n", err)
 		}
 
-		// Prefix goals with "pre_".
 		for j := range m.Runs[i].PreProv.Goals {
+
+			// Prefix goals with "pre_".
 			m.Runs[i].PreProv.Goals[j].ID = fmt.Sprintf("run_%d_pre_%s", m.Runs[i].Iteration, m.Runs[i].PreProv.Goals[j].ID)
+
+			// Set type of goal to either:
+			// * async => message passing event (@async)
+			// * next => local state chain (@next) (TODO)
+			// * single => one-time local event
+			_, isMsg := m.Runs[i].MessagesIndex[m.Runs[i].PreProv.Goals[j].Table]
+			if isMsg {
+				m.Runs[i].PreProv.Goals[j].Type = "async"
+			} else {
+				m.Runs[i].PreProv.Goals[j].Type = "single"
+			}
 		}
 
-		// Prefix rules with "pre_".
 		for j := range m.Runs[i].PreProv.Rules {
+
+			// Prefix rules with "pre_".
 			m.Runs[i].PreProv.Rules[j].ID = fmt.Sprintf("run_%d_pre_%s", m.Runs[i].Iteration, m.Runs[i].PreProv.Rules[j].ID)
+
+			// Set type of rule to either:
+			// * async => message passing event (@async)
+			// * next => local state chain (@next) (TODO)
+			// * single => one-time local event
+			_, isMsg := m.Runs[i].MessagesIndex[m.Runs[i].PreProv.Rules[j].Table]
+			if isMsg {
+				m.Runs[i].PreProv.Rules[j].Type = "async"
+			} else {
+				m.Runs[i].PreProv.Rules[j].Type = "single"
+			}
 		}
 
 		// Prefix edges with "pre_".
@@ -157,14 +191,38 @@ func (m *Molly) LoadOutput() error {
 			return fmt.Errorf("Failed to unmarshal JSON post-provenance data: %v\n", err)
 		}
 
-		// Prefix goals with "post_".
 		for j := range m.Runs[i].PostProv.Goals {
+
+			// Prefix goals with "post_".
 			m.Runs[i].PostProv.Goals[j].ID = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Goals[j].ID)
+
+			// Set type of goal to either:
+			// * async => message passing event (@async)
+			// * next => local state chain (@next) (TODO)
+			// * single => one-time local event
+			_, isMsg := m.Runs[i].MessagesIndex[m.Runs[i].PostProv.Goals[j].Table]
+			if isMsg {
+				m.Runs[i].PostProv.Goals[j].Type = "async"
+			} else {
+				m.Runs[i].PostProv.Goals[j].Type = "single"
+			}
 		}
 
-		// Prefix rules with "post_".
 		for j := range m.Runs[i].PostProv.Rules {
+
+			// Prefix rules with "post_".
 			m.Runs[i].PostProv.Rules[j].ID = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Rules[j].ID)
+
+			// Set type of rule to either:
+			// * async => message passing event (@async)
+			// * next => local state chain (@next) (TODO)
+			// * single => one-time local event
+			_, isMsg := m.Runs[i].MessagesIndex[m.Runs[i].PostProv.Rules[j].Table]
+			if isMsg {
+				m.Runs[i].PostProv.Rules[j].Type = "async"
+			} else {
+				m.Runs[i].PostProv.Rules[j].Type = "single"
+			}
 		}
 
 		// Prefix edges with "post_".
@@ -182,7 +240,13 @@ func (m *Molly) GetOutput() []*Run {
 	return m.Runs
 }
 
-// GetFailedRuns returns indexes of failed runs.
-func (m *Molly) GetFailedRuns() []uint {
-	return m.FailedRuns
+// GetRunsIters returns the iteration numbers
+// of all runs known in this struct.
+func (m *Molly) GetRunsIters() []uint {
+	return m.RunsIters
+}
+
+// GetFailedRunsIters returns indexes of failed runs.
+func (m *Molly) GetFailedRunsIters() []uint {
+	return m.FailedRunsIters
 }

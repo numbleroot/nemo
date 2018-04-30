@@ -19,7 +19,8 @@ import (
 type FaultInjector interface {
 	LoadOutput() error
 	GetOutput() []*faultinjectors.Run
-	GetFailedRuns() []uint
+	GetRunsIters() []uint
+	GetFailedRunsIters() []uint
 }
 
 // GraphDatabase
@@ -27,13 +28,14 @@ type GraphDatabase interface {
 	InitGraphDB(string) error
 	CloseDB() error
 	LoadNaiveProv([]*faultinjectors.Run) error
+	PullPrePostProv([]*faultinjectors.Run) ([]string, []string, error)
 	CreateNaiveDiffProv(bool, []uint) ([]string, error)
 }
 
 // Reporter
 type Reporter interface {
 	Prepare(string, string, string) error
-	GenerateGraphs([]uint, []string) error
+	GenerateGraphs([]uint, string, []string) error
 }
 
 // Structs.
@@ -126,9 +128,16 @@ func main() {
 	// 	log.Fatalf("Failed to create prototypical successful and failed executions: %v", err)
 	// }
 
-	// Create differential provenance graphs
-	// for postcondition provenance.
-	naiveDiffProvDots, err := debugRun.graphDB.CreateNaiveDiffProv(false, debugRun.faultInj.GetFailedRuns())
+	// Pull pre- and postcondition provenance
+	// and create DOT diagram strings.
+	preProvDots, postProvDots, err := debugRun.graphDB.PullPrePostProv(debugRun.faultInj.GetOutput())
+	if err != nil {
+		log.Fatalf("Failed to pull and generate pre- and postcondition provenance DOT: %v", err)
+	}
+
+	// Create differential provenance graphs for
+	// postcondition provenance.
+	naiveDiffProvDots, err := debugRun.graphDB.CreateNaiveDiffProv(false, debugRun.faultInj.GetFailedRunsIters())
 	if err != nil {
 		log.Fatalf("Could not create the naive differential provenance (bad - good): %v", err)
 	}
@@ -143,17 +152,28 @@ func main() {
 
 	// Reporting.
 
-	// Prepare report webpage containing
-	// all insights and suggestions.
+	// Prepare report webpage containing all insights and suggestions.
 	err = debugRun.reporter.Prepare(debugRun.workDir, debugRun.allResultsDir, debugRun.thisResultsDir)
 	if err != nil {
 		log.Fatalf("Failed to prepare debugging report: %v", err)
 	}
 
-	// Generate and write-out graphs.
-	err = debugRun.reporter.GenerateGraphs(debugRun.faultInj.GetFailedRuns(), naiveDiffProvDots)
+	// Generate and write-out precondition provenance graphs.
+	err = debugRun.reporter.GenerateGraphs(debugRun.faultInj.GetRunsIters(), "pre_prov", preProvDots)
 	if err != nil {
-		log.Fatalf("Could not generate graphs for report: %v", err)
+		log.Fatalf("Could not generate precondition provenance graph for report: %v", err)
+	}
+
+	// Generate and write-out postcondition provenance graphs.
+	err = debugRun.reporter.GenerateGraphs(debugRun.faultInj.GetRunsIters(), "post_prov", postProvDots)
+	if err != nil {
+		log.Fatalf("Could not generate postcondition provenance graph for report: %v", err)
+	}
+
+	// Generate and write-out naive differential provenance graphs.
+	err = debugRun.reporter.GenerateGraphs(debugRun.faultInj.GetFailedRunsIters(), "diff_post_prov", naiveDiffProvDots)
+	if err != nil {
+		log.Fatalf("Could not generate naive differential provenance graph for report: %v", err)
 	}
 
 	fmt.Printf("All done! Find the debug report here: %s\n\n", filepath.Join(debugRun.thisResultsDir, "index.html"))
