@@ -7,6 +7,7 @@ img {
 }
 
 .container-fluid { margin: 20px auto 30px; }
+.row { margin-bottom: 25px; }
 
 .help-block {
     display: block;
