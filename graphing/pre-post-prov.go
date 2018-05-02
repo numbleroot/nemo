@@ -2,9 +2,7 @@ package graphing
 
 import (
 	"fmt"
-	"io"
 	"strings"
-	"sync"
 
 	neo4j "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
@@ -223,18 +221,11 @@ func (n *Neo4J) LoadNaiveProv(runs []*faultinjectors.Run) error {
 // PullPrePostProv
 func (n *Neo4J) PullPrePostProv(runs []*faultinjectors.Run) ([]string, []string, error) {
 
-	mu := &sync.Mutex{}
-
 	preDotStrings := make([]string, len(runs))
 	postDotStrings := make([]string, len(runs))
 
 	// Query for imported correctness condition provenance.
-	stmtPreProv, err := n.Conn1.PrepareNeo("MATCH path = ({run: {run}, condition: \"pre\"})-[:DUETO*1]->({run: {run}, condition: \"pre\"}) RETURN path;")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	stmtPostProv, err := n.Conn2.PrepareNeo("MATCH path = ({run: {run}, condition: \"post\"})-[:DUETO*1]->({run: {run}, condition: \"post\"}) RETURN path;")
+	stmtProv, err := n.Conn1.PrepareNeo("MATCH path = ({run: {run}, condition: {condition}})-[:DUETO*1]->({run: {run}, condition: {condition}}) RETURN path;")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -244,30 +235,26 @@ func (n *Neo4J) PullPrePostProv(runs []*faultinjectors.Run) ([]string, []string,
 		preEdges := make([]graph.Path, 0, 20)
 		postEdges := make([]graph.Path, 0, 20)
 
-		mu.Lock()
-		preEdgesRaw, err := stmtPreProv.QueryNeo(map[string]interface{}{
-			"run": runs[i].Iteration,
+		preEdgesRaw, err := stmtProv.QueryNeo(map[string]interface{}{
+			"run":       runs[i].Iteration,
+			"condition": "pre",
 		})
 		if err != nil {
 			return nil, nil, err
 		}
-		mu.Unlock()
 
-		for err == nil {
+		preEdgesRows, _, err := preEdgesRaw.All()
+		if err != nil {
+			return nil, nil, err
+		}
 
-			var preEdgeRaw []interface{}
+		for p := range preEdgesRows {
 
-			preEdgeRaw, _, err = preEdgesRaw.NextNeo()
-			if err != nil && err != io.EOF {
-				return nil, nil, err
-			} else if err == nil {
+			// Type-assert raw edge into well-defined struct.
+			edge := preEdgesRows[p][0].(graph.Path)
 
-				// Type-assert raw edge into well-defined struct.
-				edge := preEdgeRaw[0].(graph.Path)
-
-				// Append to slice of edges.
-				preEdges = append(preEdges, edge)
-			}
+			// Append to slice of edges.
+			preEdges = append(preEdges, edge)
 		}
 
 		// Pass to DOT string generator.
@@ -276,30 +263,31 @@ func (n *Neo4J) PullPrePostProv(runs []*faultinjectors.Run) ([]string, []string,
 			return nil, nil, err
 		}
 
-		mu.Lock()
-		postEdgesRaw, err := stmtPostProv.QueryNeo(map[string]interface{}{
-			"run": runs[i].Iteration,
+		err = preEdgesRaw.Close()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		postEdgesRaw, err := stmtProv.QueryNeo(map[string]interface{}{
+			"run":       runs[i].Iteration,
+			"condition": "post",
 		})
 		if err != nil {
 			return nil, nil, err
 		}
-		mu.Unlock()
 
-		for err == nil {
+		postEdgesRows, _, err := postEdgesRaw.All()
+		if err != nil {
+			return nil, nil, err
+		}
 
-			var postEdgeRaw []interface{}
+		for p := range postEdgesRows {
 
-			postEdgeRaw, _, err = postEdgesRaw.NextNeo()
-			if err != nil && err != io.EOF {
-				return nil, nil, err
-			} else if err == nil {
+			// Type-assert raw edge into well-defined struct.
+			edge := postEdgesRows[p][0].(graph.Path)
 
-				// Type-assert raw edge into well-defined struct.
-				edge := postEdgeRaw[0].(graph.Path)
-
-				// Append to slice of edges.
-				postEdges = append(postEdges, edge)
-			}
+			// Append to slice of edges.
+			postEdges = append(postEdges, edge)
 		}
 
 		// Pass to DOT string generator.
@@ -308,16 +296,16 @@ func (n *Neo4J) PullPrePostProv(runs []*faultinjectors.Run) ([]string, []string,
 			return nil, nil, err
 		}
 
+		err = postEdgesRaw.Close()
+		if err != nil {
+			return nil, nil, err
+		}
+
 		preDotStrings[i] = preDotString
 		postDotStrings[i] = postDotString
 	}
 
-	err = stmtPreProv.Close()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	err = stmtPostProv.Close()
+	err = stmtProv.Close()
 	if err != nil {
 		return nil, nil, err
 	}

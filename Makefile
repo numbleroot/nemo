@@ -1,4 +1,4 @@
-.PHONY: all clean deps plugins build
+.PHONY: all clean deps build
 
 all: clean build
 
