@@ -28,12 +28,16 @@ func createDOT(edges []graph.Path) (string, error) {
 
 	for i := range edges {
 
+		fmt.Printf("FROM: '%#v'\n\n", edges[i].Nodes[0])
+		fmt.Printf("TO: '%#v'\n\n", edges[i].Nodes[1])
+
 		from := edges[i].Nodes[0].Properties["id"].(string)
 		to := edges[i].Nodes[1].Properties["id"].(string)
 
 		fromAttrs := make(map[string]string)
 		fromAttrs["label"] = fmt.Sprintf("\"%s\"", edges[i].Nodes[0].Properties["label"])
 
+		// Style node differently based on time notion.
 		if edges[i].Nodes[0].Properties["type"] == "async" {
 			fromAttrs["style"] = "\"filled, bold\""
 			fromAttrs["color"] = "\"black\""
@@ -51,9 +55,15 @@ func createDOT(edges []graph.Path) (string, error) {
 			fromAttrs["fillcolor"] = "\"white\""
 		}
 
+		// Style node differently based on achieved condition.
+		if edges[i].Nodes[0].Properties["condition_holds"] == true {
+			fromAttrs["fontcolor"] = "\"crimson\""
+		}
+
 		toAttrs := make(map[string]string)
 		toAttrs["label"] = fmt.Sprintf("\"%s\"", edges[i].Nodes[1].Properties["label"])
 
+		// Style node differently based on time notion.
 		if edges[i].Nodes[1].Properties["type"] == "async" {
 			toAttrs["style"] = "\"filled, bold\""
 			toAttrs["color"] = "\"black\""
@@ -69,6 +79,11 @@ func createDOT(edges []graph.Path) (string, error) {
 			toAttrs["color"] = "\"gray50\""
 			toAttrs["fontcolor"] = "\"gray50\""
 			toAttrs["fillcolor"] = "\"white\""
+		}
+
+		// Style node differently based on achieved condition.
+		if edges[i].Nodes[1].Properties["condition_holds"] == true {
+			toAttrs["fontcolor"] = "\"crimson\""
 		}
 
 		// Add first node with all info from query.

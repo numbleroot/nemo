@@ -47,12 +47,21 @@ type Message struct {
 	RecvTime uint   `json:"receiveTime"`
 }
 
-// Node
-type Node struct {
+// Goal
+type Goal struct {
+	ID        string `json:"id"`
+	Label     string `json:"label"`
+	Table     string `json:"table"`
+	Time      string `json:"time"`
+	CondHolds bool   `json:"-"`
+}
+
+// Rule
+type Rule struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
 	Table string `json:"table"`
-	Type  string `json:"-"`
+	Type  string `json:"type"`
 }
 
 // Edge
@@ -63,21 +72,20 @@ type Edge struct {
 
 // ProvData
 type ProvData struct {
-	Goals []Node `json:"goals"`
-	Rules []Node `json:"rules"`
+	Goals []Goal `json:"goals"`
+	Rules []Rule `json:"rules"`
 	Edges []Edge `json:"edges"`
 }
 
 // Run
 type Run struct {
-	Iteration     uint            `json:"iteration"`
-	Status        string          `json:"status"`
-	FailureSpec   *FailureSpec    `json:"failureSpec"`
-	Model         *Model          `json:"model"`
-	Messages      []*Message      `json:"messages"`
-	MessagesIndex map[string]bool `json:"-"`
-	PreProv       *ProvData       `json:"-"`
-	PostProv      *ProvData       `json:"-"`
+	Iteration   uint         `json:"iteration"`
+	Status      string       `json:"status"`
+	FailureSpec *FailureSpec `json:"failureSpec"`
+	Model       *Model       `json:"model"`
+	Messages    []*Message   `json:"messages"`
+	PreProv     *ProvData    `json:"-"`
+	PostProv    *ProvData    `json:"-"`
 }
 
 // Molly
@@ -114,6 +122,20 @@ func (m *Molly) LoadOutput() error {
 	// Load pre- and post-provenance for each iteration.
 	for i := range m.Runs {
 
+		// Create lookup map for when the
+		// precondition holds in this run.
+		timePreHolds := make(map[string]bool)
+		for _, table := range m.Runs[i].Model.Tables["pre"] {
+			timePreHolds[table[(len(table)-1)]] = true
+		}
+
+		// Create lookup map for when the
+		// postcondition holds in this run.
+		timePostHolds := make(map[string]bool)
+		for _, table := range m.Runs[i].Model.Tables["post"] {
+			timePostHolds[table[(len(table)-1)]] = true
+		}
+
 		// Note return status of fault injection
 		// run in separate structure.
 		m.RunsIters[i] = m.Runs[i].Iteration
@@ -121,11 +143,6 @@ func (m *Molly) LoadOutput() error {
 			m.SuccessRunsIters = append(m.SuccessRunsIters, m.Runs[i].Iteration)
 		} else {
 			m.FailedRunsIters = append(m.FailedRunsIters, m.Runs[i].Iteration)
-		}
-
-		m.Runs[i].MessagesIndex = make(map[string]bool)
-		for j := range m.Runs[i].Messages {
-			m.Runs[i].MessagesIndex[m.Runs[i].Messages[j].Content] = true
 		}
 
 		preProvFile := filepath.Join(m.OutputDir, fmt.Sprintf("run_%d_pre_provenance.json", i))
@@ -146,15 +163,13 @@ func (m *Molly) LoadOutput() error {
 			// Prefix goals with "pre_".
 			m.Runs[i].PreProv.Goals[j].ID = fmt.Sprintf("run_%d_pre_%s", m.Runs[i].Iteration, m.Runs[i].PreProv.Goals[j].ID)
 
-			// Set type of goal to either:
-			// * async => message passing event (@async)
-			// * next => local state chain (@next) (TODO)
-			// * single => one-time local event
-			_, isMsg := m.Runs[i].MessagesIndex[m.Runs[i].PreProv.Goals[j].Table]
-			if isMsg {
-				m.Runs[i].PreProv.Goals[j].Type = "async"
+			// Set flag if goal falls into time during
+			// execution where precondition holds.
+			_, holds := timePreHolds[m.Runs[i].PreProv.Goals[j].Time]
+			if holds {
+				m.Runs[i].PreProv.Goals[j].CondHolds = true
 			} else {
-				m.Runs[i].PreProv.Goals[j].Type = "single"
+				m.Runs[i].PreProv.Goals[j].CondHolds = false
 			}
 		}
 
@@ -162,17 +177,6 @@ func (m *Molly) LoadOutput() error {
 
 			// Prefix rules with "pre_".
 			m.Runs[i].PreProv.Rules[j].ID = fmt.Sprintf("run_%d_pre_%s", m.Runs[i].Iteration, m.Runs[i].PreProv.Rules[j].ID)
-
-			// Set type of rule to either:
-			// * async => message passing event (@async)
-			// * next => local state chain (@next) (TODO)
-			// * single => one-time local event
-			_, isMsg := m.Runs[i].MessagesIndex[m.Runs[i].PreProv.Rules[j].Table]
-			if isMsg {
-				m.Runs[i].PreProv.Rules[j].Type = "async"
-			} else {
-				m.Runs[i].PreProv.Rules[j].Type = "single"
-			}
 		}
 
 		// Prefix edges with "pre_".
@@ -196,15 +200,13 @@ func (m *Molly) LoadOutput() error {
 			// Prefix goals with "post_".
 			m.Runs[i].PostProv.Goals[j].ID = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Goals[j].ID)
 
-			// Set type of goal to either:
-			// * async => message passing event (@async)
-			// * next => local state chain (@next) (TODO)
-			// * single => one-time local event
-			_, isMsg := m.Runs[i].MessagesIndex[m.Runs[i].PostProv.Goals[j].Table]
-			if isMsg {
-				m.Runs[i].PostProv.Goals[j].Type = "async"
+			// Set flag if goal falls into time during
+			// execution where postcondition holds.
+			_, holds := timePostHolds[m.Runs[i].PostProv.Goals[j].Time]
+			if holds {
+				m.Runs[i].PostProv.Goals[j].CondHolds = true
 			} else {
-				m.Runs[i].PostProv.Goals[j].Type = "single"
+				m.Runs[i].PostProv.Goals[j].CondHolds = false
 			}
 		}
 
@@ -212,17 +214,6 @@ func (m *Molly) LoadOutput() error {
 
 			// Prefix rules with "post_".
 			m.Runs[i].PostProv.Rules[j].ID = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Rules[j].ID)
-
-			// Set type of rule to either:
-			// * async => message passing event (@async)
-			// * next => local state chain (@next) (TODO)
-			// * single => one-time local event
-			_, isMsg := m.Runs[i].MessagesIndex[m.Runs[i].PostProv.Rules[j].Table]
-			if isMsg {
-				m.Runs[i].PostProv.Rules[j].Type = "async"
-			} else {
-				m.Runs[i].PostProv.Rules[j].Type = "single"
-			}
 		}
 
 		// Prefix edges with "post_".

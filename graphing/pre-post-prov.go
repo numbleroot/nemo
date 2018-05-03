@@ -22,7 +22,7 @@ type Neo4J struct {
 // loadProv
 func (n *Neo4J) loadProv(iteration uint, provCond string, provData *faultinjectors.ProvData) error {
 
-	stmtGoal, err := n.Conn1.PrepareNeo("CREATE (goal:Goal {id: {id}, run: {run}, condition: {condition}, label: {label}, table: {table}, type: {type}});")
+	stmtGoal, err := n.Conn1.PrepareNeo("CREATE (goal:Goal {id: {id}, run: {run}, condition: {condition}, label: {label}, table: {table}, time: {time}, condition_holds: {condition_holds}});")
 	if err != nil {
 		return err
 	}
@@ -33,12 +33,13 @@ func (n *Neo4J) loadProv(iteration uint, provCond string, provData *faultinjecto
 
 		// Create a goal node.
 		res, err := stmtGoal.ExecNeo(map[string]interface{}{
-			"id":        provData.Goals[j].ID,
-			"run":       iteration,
-			"condition": provCond,
-			"label":     provData.Goals[j].Label,
-			"table":     provData.Goals[j].Table,
-			"type":      provData.Goals[j].Type,
+			"id":              provData.Goals[j].ID,
+			"run":             iteration,
+			"condition":       provCond,
+			"label":           provData.Goals[j].Label,
+			"table":           provData.Goals[j].Table,
+			"time":            provData.Goals[j].Time,
+			"condition_holds": provData.Goals[j].CondHolds,
 		})
 		if err != nil {
 			return err
