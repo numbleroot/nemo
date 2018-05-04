@@ -261,7 +261,7 @@ func (n *Neo4J) PullPrePostProv() ([]string, []string, error) {
 		}
 
 		// Pass to DOT string generator.
-		preDotString, err := createDOT(preEdges)
+		preDotString, err := createDOT(preEdges, "pre")
 		if err != nil {
 			return nil, nil, err
 		}
@@ -294,7 +294,7 @@ func (n *Neo4J) PullPrePostProv() ([]string, []string, error) {
 		}
 
 		// Pass to DOT string generator.
-		postDotString, err := createDOT(postEdges)
+		postDotString, err := createDOT(postEdges, "post")
 		if err != nil {
 			return nil, nil, err
 		}

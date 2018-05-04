@@ -93,7 +93,7 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint) ([]string
 		}
 
 		// Pass to DOT string generator.
-		dotString, err := createDOT(edges)
+		dotString, err := createDOT(edges, "diff")
 		if err != nil {
 			return nil, err
 		}

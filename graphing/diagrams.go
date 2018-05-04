@@ -10,7 +10,7 @@ import (
 // Functions.
 
 // createDOT
-func createDOT(edges []graph.Path) (string, error) {
+func createDOT(edges []graph.Path, graphType string) (string, error) {
 
 	dotGraph := gographviz.NewGraph()
 
@@ -32,45 +32,49 @@ func createDOT(edges []graph.Path) (string, error) {
 		to := edges[i].Nodes[1].Properties["id"].(string)
 
 		fromAttrs := make(map[string]string)
+
 		fromAttrs["label"] = fmt.Sprintf("\"%s\"", edges[i].Nodes[0].Properties["label"])
+		fromAttrs["style"] = "\"filled, solid\""
+		fromAttrs["color"] = "\"black\""
+		fromAttrs["fontcolor"] = "\"black\""
+		fromAttrs["fillcolor"] = "\"white\""
 
 		// Style node differently based on time notion.
 		if edges[i].Nodes[0].Properties["type"] == "async" {
 			fromAttrs["style"] = "\"filled, bold\""
-			fromAttrs["color"] = "\"black\""
-			fromAttrs["fontcolor"] = "\"black\""
-			fromAttrs["fillcolor"] = "\"steelblue1\""
-		} else {
-			fromAttrs["style"] = "\"filled, solid\""
-			fromAttrs["color"] = "\"gray50\""
-			fromAttrs["fontcolor"] = "\"gray50\""
-			fromAttrs["fillcolor"] = "\"white\""
+			fromAttrs["color"] = "\"orangered\""
 		}
 
 		// Style node differently based on achieved condition.
-		if edges[i].Nodes[0].Properties["condition_holds"] == true {
-			fromAttrs["fontcolor"] = "\"crimson\""
+		if (edges[i].Nodes[0].Properties["condition_holds"] == true) && (graphType == "pre") {
+			fromAttrs["color"] = "\"firebrick3\""
+			fromAttrs["fillcolor"] = "\"firebrick3\""
+		} else if (edges[i].Nodes[0].Properties["condition_holds"] == true) && (graphType == "post") {
+			fromAttrs["color"] = "\"deepskyblue3\""
+			fromAttrs["fillcolor"] = "\"deepskyblue3\""
 		}
 
 		toAttrs := make(map[string]string)
+
 		toAttrs["label"] = fmt.Sprintf("\"%s\"", edges[i].Nodes[1].Properties["label"])
+		toAttrs["style"] = "\"filled, solid\""
+		toAttrs["color"] = "\"black\""
+		toAttrs["fontcolor"] = "\"black\""
+		toAttrs["fillcolor"] = "\"white\""
 
 		// Style node differently based on time notion.
 		if edges[i].Nodes[1].Properties["type"] == "async" {
 			toAttrs["style"] = "\"filled, bold\""
-			toAttrs["color"] = "\"black\""
-			toAttrs["fontcolor"] = "\"black\""
-			toAttrs["fillcolor"] = "\"steelblue1\""
-		} else {
-			toAttrs["style"] = "\"filled, solid\""
-			toAttrs["color"] = "\"gray50\""
-			toAttrs["fontcolor"] = "\"gray50\""
-			toAttrs["fillcolor"] = "\"white\""
+			toAttrs["color"] = "\"orangered\""
 		}
 
 		// Style node differently based on achieved condition.
-		if edges[i].Nodes[1].Properties["condition_holds"] == true {
-			toAttrs["fontcolor"] = "\"crimson\""
+		if (edges[i].Nodes[1].Properties["condition_holds"] == true) && (graphType == "pre") {
+			toAttrs["color"] = "\"firebrick3\""
+			toAttrs["fillcolor"] = "\"firebrick3\""
+		} else if (edges[i].Nodes[1].Properties["condition_holds"] == true) && (graphType == "post") {
+			toAttrs["color"] = "\"deepskyblue3\""
+			toAttrs["fillcolor"] = "\"deepskyblue3\""
 		}
 
 		// Add first node with all info from query.
