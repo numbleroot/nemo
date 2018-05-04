@@ -2,6 +2,7 @@ package graphing
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/awalterschulze/gographviz"
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
@@ -10,20 +11,20 @@ import (
 // Functions.
 
 // createDOT
-func createDOT(edges []graph.Path, graphType string) (string, error) {
+func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) {
 
 	dotGraph := gographviz.NewGraph()
 
 	// Name the DOT graph.
 	err := dotGraph.SetName("dataflow")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// It is a directed graph.
 	err = dotGraph.SetDir(true)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	for i := range edges {
@@ -80,13 +81,13 @@ func createDOT(edges []graph.Path, graphType string) (string, error) {
 		// Add first node with all info from query.
 		err := dotGraph.AddNode("dataflow", from, fromAttrs)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		// Add second node with all info from query.
 		err = dotGraph.AddNode("dataflow", to, toAttrs)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		// Add edge to DOT graph.
@@ -94,9 +95,89 @@ func createDOT(edges []graph.Path, graphType string) (string, error) {
 			"color": "\"black\"",
 		})
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	}
 
-	return dotGraph.String(), nil
+	return dotGraph, nil
+}
+
+// createDiffDot
+func createDiffDot(diffRunID uint, edges []graph.Path, successRunID uint, successPostProv *gographviz.Graph) (*gographviz.Graph, error) {
+
+	dotGraph := gographviz.NewGraph()
+
+	// Name the DOT graph.
+	err := dotGraph.SetName("dataflow")
+	if err != nil {
+		return nil, err
+	}
+
+	// It is a directed graph.
+	err = dotGraph.SetDir(true)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, edge := range successPostProv.Edges.Edges {
+
+		diffSrc := strings.Replace(edge.Src, fmt.Sprintf("run_%d", successRunID), fmt.Sprintf("run_%d", diffRunID), -1)
+		diffDst := strings.Replace(edge.Dst, fmt.Sprintf("run_%d", successRunID), fmt.Sprintf("run_%d", diffRunID), -1)
+
+		// Copy attribute map.
+		attrMap := make(map[string]string)
+		for j := range edge.Attrs {
+			attrMap[string(j)] = edge.Attrs[j]
+		}
+
+		// Copy the edge over to new graph.
+		err := dotGraph.AddEdge(diffSrc, diffDst, edge.Dir, attrMap)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Make all edges invisible before copying
+	// successful postcondition provenance graph.
+	err = dotGraph.AddNode("dataflow", "edge", map[string]string{
+		"style": "\"invis\"",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, node := range successPostProv.Nodes.Nodes {
+
+		diffName := strings.Replace(node.Name, fmt.Sprintf("run_%d", successRunID), fmt.Sprintf("run_%d", diffRunID), -1)
+
+		// Copy attribute map.
+		attrMap := make(map[string]string)
+		for j := range node.Attrs {
+			attrMap[string(j)] = node.Attrs[j]
+		}
+
+		// Overwrite style attribute to hide node.
+		attrMap["style"] = "\"invis\""
+
+		// Copy the node over to new graph.
+		err := dotGraph.AddNode("dataflow", diffName, attrMap)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for i := range edges {
+
+		from := edges[i].Nodes[0].Properties["id"].(string)
+		to := edges[i].Nodes[1].Properties["id"].(string)
+
+		dotGraph.Nodes.Lookup[from].Attrs["style"] = "\"filled, solid\""
+		dotGraph.Nodes.Lookup[to].Attrs["style"] = "\"filled, solid\""
+
+		for j := range dotGraph.Edges.SrcToDsts[from][to] {
+			fmt.Printf("EDGE: '%#v'\n", dotGraph.Edges.SrcToDsts[from][to][j])
+		}
+	}
+
+	return dotGraph, err
 }

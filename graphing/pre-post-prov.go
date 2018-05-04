@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/awalterschulze/gographviz"
 	neo4j "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
-	"github.com/numbleroot/nemo/faultinjectors"
 	fi "github.com/numbleroot/nemo/faultinjectors"
 )
 
@@ -22,7 +22,7 @@ type Neo4J struct {
 // Functions.
 
 // loadProv
-func (n *Neo4J) loadProv(iteration uint, provCond string, provData *faultinjectors.ProvData) error {
+func (n *Neo4J) loadProv(iteration uint, provCond string, provData *fi.ProvData) error {
 
 	stmtGoal, err := n.Conn1.PrepareNeo("CREATE (goal:Goal {id: {id}, run: {run}, condition: {condition}, label: {label}, table: {table}, time: {time}, condition_holds: {condition_holds}});")
 	if err != nil {
@@ -222,10 +222,10 @@ func (n *Neo4J) LoadNaiveProv() error {
 }
 
 // PullPrePostProv
-func (n *Neo4J) PullPrePostProv() ([]string, []string, error) {
+func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error) {
 
-	preDotStrings := make([]string, len(n.Runs))
-	postDotStrings := make([]string, len(n.Runs))
+	preDots := make([]*gographviz.Graph, len(n.Runs))
+	postDots := make([]*gographviz.Graph, len(n.Runs))
 
 	// Query for imported correctness condition provenance.
 	stmtProv, err := n.Conn1.PrepareNeo("MATCH path = ({run: {run}, condition: {condition}})-[:DUETO*1]->({run: {run}, condition: {condition}}) RETURN path;")
@@ -261,7 +261,7 @@ func (n *Neo4J) PullPrePostProv() ([]string, []string, error) {
 		}
 
 		// Pass to DOT string generator.
-		preDotString, err := createDOT(preEdges, "pre")
+		preDot, err := createDOT(preEdges, "pre")
 		if err != nil {
 			return nil, nil, err
 		}
@@ -294,7 +294,7 @@ func (n *Neo4J) PullPrePostProv() ([]string, []string, error) {
 		}
 
 		// Pass to DOT string generator.
-		postDotString, err := createDOT(postEdges, "post")
+		postDot, err := createDOT(postEdges, "post")
 		if err != nil {
 			return nil, nil, err
 		}
@@ -304,8 +304,8 @@ func (n *Neo4J) PullPrePostProv() ([]string, []string, error) {
 			return nil, nil, err
 		}
 
-		preDotStrings[i] = preDotString
-		postDotStrings[i] = postDotString
+		preDots[i] = preDot
+		postDots[i] = postDot
 	}
 
 	err = stmtProv.Close()
@@ -313,5 +313,5 @@ func (n *Neo4J) PullPrePostProv() ([]string, []string, error) {
 		return nil, nil, err
 	}
 
-	return preDotStrings, postDotStrings, nil
+	return preDots, postDots, nil
 }

@@ -13,9 +13,9 @@ import (
 // Functions.
 
 // CreateHazardAnalysis
-func (n *Neo4J) CreateHazardAnalysis(faultInjOut string) ([]string, error) {
+func (n *Neo4J) CreateHazardAnalysis(faultInjOut string) ([]*gographviz.Graph, error) {
 
-	dotStrings := make([]string, len(n.Runs))
+	dots := make([]*gographviz.Graph, len(n.Runs))
 
 	for i := range n.Runs {
 
@@ -77,8 +77,8 @@ func (n *Neo4J) CreateHazardAnalysis(faultInjOut string) ([]string, error) {
 			}
 		}
 
-		dotStrings[i] = spaceTimeGraph.String()
+		dots[i] = spaceTimeGraph
 	}
 
-	return dotStrings, nil
+	return dots, nil
 }

@@ -7,17 +7,27 @@ import (
 
 	"os/exec"
 
+	"github.com/awalterschulze/gographviz"
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
 
 // Functions.
 
 // CreateNaiveDiffProv
-func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint) ([]string, error) {
+func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPostProv *gographviz.Graph) ([]*gographviz.Graph, error) {
 
-	exportQuery := "CALL apoc.export.cypher.query(\"MATCH (failed:Goal {run: ###RUN###, condition: 'post'}) WITH collect(failed.label) AS failGoals MATCH pathSucc = (root:Goal {run: 0, condition: 'post'})-[*0..]->(goal:Goal {run: 0, condition: 'post'}) WHERE NOT root.label IN failGoals AND NOT goal.label IN failGoals RETURN pathSucc;\", \"/tmp/export-differential-provenance\", {format:\"plain\",cypherFormat:\"create\"}) YIELD file, source, format, nodes, relationships, properties, time RETURN file, source, format, nodes, relationships, properties, time;"
+	exportQuery := `CALL apoc.export.cypher.query("
+	MATCH (failed:Goal {run: ###RUN###, condition: 'post'})
+	WITH collect(failed.label) AS failGoals
 
-	dotStrings := make([]string, len(failedRuns))
+	MATCH pathSucc = (root:Goal {run: 0, condition: 'post'})-[*0..]->(goal:Goal {run: 0, condition: 'post'})
+	WHERE NOT root.label IN failGoals AND NOT goal.label IN failGoals
+	RETURN pathSucc;
+	", "/tmp/export-differential-provenance", {format:"plain",cypherFormat:"create"})
+	YIELD file, source, format, nodes, relationships, properties, time
+	RETURN file, source, format, nodes, relationships, properties, time;`
+
+	dots := make([]*gographviz.Graph, len(failedRuns))
 
 	for i := range failedRuns {
 
@@ -93,7 +103,7 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint) ([]string
 		}
 
 		// Pass to DOT string generator.
-		dotString, err := createDOT(edges, "diff")
+		dot, err := createDiffDot(diffRunID, edges, 0, successPostProv)
 		if err != nil {
 			return nil, err
 		}
@@ -103,8 +113,8 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint) ([]string
 			return nil, err
 		}
 
-		dotStrings[i] = dotString
+		dots[i] = dot
 	}
 
-	return dotStrings, nil
+	return dots, nil
 }

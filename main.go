@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
+	"github.com/awalterschulze/gographviz"
 	"github.com/numbleroot/nemo/faultinjectors"
 	"github.com/numbleroot/nemo/graphing"
 	"github.com/numbleroot/nemo/report"
@@ -30,15 +31,15 @@ type GraphDatabase interface {
 	InitGraphDB(string, []*faultinjectors.Run) error
 	CloseDB() error
 	LoadNaiveProv() error
-	PullPrePostProv() ([]string, []string, error)
-	CreateNaiveDiffProv(bool, []uint) ([]string, error)
-	CreateHazardAnalysis(string) ([]string, error)
+	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error)
+	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, error)
+	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
 }
 
 // Reporter
 type Reporter interface {
 	Prepare(string, string, string) error
-	GenerateFigures([]uint, string, []string) error
+	GenerateFigures([]uint, string, []*gographviz.Graph) error
 }
 
 // Structs.
@@ -140,7 +141,7 @@ func main() {
 
 	// Create differential provenance graphs for
 	// postcondition provenance.
-	naiveDiffProvDots, err := debugRun.graphDB.CreateNaiveDiffProv(false, debugRun.faultInj.GetFailedRunsIters())
+	naiveDiffProvDots, err := debugRun.graphDB.CreateNaiveDiffProv(false, debugRun.faultInj.GetFailedRunsIters(), postProvDots[0])
 	if err != nil {
 		log.Fatalf("Could not create the naive differential provenance (bad - good): %v", err)
 	}

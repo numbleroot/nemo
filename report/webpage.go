@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/awalterschulze/gographviz"
 )
 
 // Structs.
@@ -48,7 +50,7 @@ func (r *Report) Prepare(wrkDir string, allResDir string, thisResDir string) err
 }
 
 // GenerateFigures
-func (r *Report) GenerateFigures(iters []uint, name string, dotProv []string) error {
+func (r *Report) GenerateFigures(iters []uint, name string, dotProv []*gographviz.Graph) error {
 
 	// We require that each element in dotProv
 	// has a corresponding element in names.
@@ -62,7 +64,7 @@ func (r *Report) GenerateFigures(iters []uint, name string, dotProv []string) er
 		svgFilePath := filepath.Join(r.figuresDir, fmt.Sprintf("run_%d_%s.svg", iters[i], name))
 
 		// Write-out file containing DOT string.
-		err := ioutil.WriteFile(dotFilePath, []byte(dotProv[i]), 0644)
+		err := ioutil.WriteFile(dotFilePath, []byte(dotProv[i].String()), 0644)
 		if err != nil {
 			return err
 		}
