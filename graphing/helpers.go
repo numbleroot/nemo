@@ -8,12 +8,13 @@ import (
 	"os/exec"
 
 	neo4j "github.com/johnnadratowski/golang-neo4j-bolt-driver"
+	fi "github.com/numbleroot/nemo/faultinjectors"
 )
 
 // Functions.
 
 // InitGraphDB
-func (n *Neo4J) InitGraphDB(boltURI string) error {
+func (n *Neo4J) InitGraphDB(boltURI string, runs []*fi.Run) error {
 
 	// Run the docker start command.
 	fmt.Printf("Starting docker containers...")
@@ -46,6 +47,7 @@ func (n *Neo4J) InitGraphDB(boltURI string) error {
 
 	n.Conn1 = c1
 	n.Conn2 = c2
+	n.Runs = runs
 
 	fmt.Println()
 

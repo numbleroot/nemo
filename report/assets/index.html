@@ -120,7 +120,6 @@
             var selectedRun = null;
 
             // Hide areas that are only relevant for bad executions.
-            d3.select("#hazard").style("display", "none");
             d3.select("#diff-prov").style("display", "none");
             d3.select("#pre-post-correctness").style("display", "none");
 
@@ -169,21 +168,21 @@
             var displaySelectedRun = function(newRun) {
 
                 // Remove old figures.
+                d3.select("#hazard-analysis img").remove();
                 d3.select("#pre-prov img").remove();
                 d3.select("#post-prov img").remove();
 
                 // Add currently selected figures.
+                d3.select("#hazard-analysis").append("img").attr("src", "figures/run_" + newRun.iteration + "_spacetime.svg");
                 d3.select("#pre-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_pre_prov.svg");
                 d3.select("#post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov.svg");
 
                 if(newRun.status != "success") {
                     // Make relevant areas visible.
-                    d3.select("#hazard").style("display", "block");
                     d3.select("#diff-prov").style("display", "block");
                     d3.select("#pre-post-correctness").style("display", "block");
                 } else {
                     // Hide irrelevant areas.
-                    d3.select("#hazard").style("display", "none");
                     d3.select("#diff-prov").style("display", "none");
                     d3.select("#pre-post-correctness").style("display", "none");
                 }

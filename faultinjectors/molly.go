@@ -79,13 +79,15 @@ type ProvData struct {
 
 // Run
 type Run struct {
-	Iteration   uint         `json:"iteration"`
-	Status      string       `json:"status"`
-	FailureSpec *FailureSpec `json:"failureSpec"`
-	Model       *Model       `json:"model"`
-	Messages    []*Message   `json:"messages"`
-	PreProv     *ProvData    `json:"preProv,omitempty"`
-	PostProv    *ProvData    `json:"postProv,omitempty"`
+	Iteration     uint            `json:"iteration"`
+	Status        string          `json:"status"`
+	FailureSpec   *FailureSpec    `json:"failureSpec"`
+	Model         *Model          `json:"model"`
+	Messages      []*Message      `json:"messages"`
+	PreProv       *ProvData       `json:"preProv,omitempty"`
+	TimePreHolds  map[string]bool `json:"timePreHolds,omitempty"`
+	PostProv      *ProvData       `json:"postProv,omitempty"`
+	TimePostHolds map[string]bool `json:"timePostHolds,omitempty"`
 }
 
 // Molly
@@ -124,16 +126,16 @@ func (m *Molly) LoadOutput() error {
 
 		// Create lookup map for when the
 		// precondition holds in this run.
-		timePreHolds := make(map[string]bool)
+		m.Runs[i].TimePreHolds = make(map[string]bool)
 		for _, table := range m.Runs[i].Model.Tables["pre"] {
-			timePreHolds[table[(len(table)-1)]] = true
+			m.Runs[i].TimePreHolds[table[(len(table)-1)]] = true
 		}
 
 		// Create lookup map for when the
 		// postcondition holds in this run.
-		timePostHolds := make(map[string]bool)
+		m.Runs[i].TimePostHolds = make(map[string]bool)
 		for _, table := range m.Runs[i].Model.Tables["post"] {
-			timePostHolds[table[(len(table)-1)]] = true
+			m.Runs[i].TimePostHolds[table[(len(table)-1)]] = true
 		}
 
 		// Note return status of fault injection
@@ -165,7 +167,7 @@ func (m *Molly) LoadOutput() error {
 
 			// Set flag if goal falls into time during
 			// execution where precondition holds.
-			_, holds := timePreHolds[m.Runs[i].PreProv.Goals[j].Time]
+			_, holds := m.Runs[i].TimePreHolds[m.Runs[i].PreProv.Goals[j].Time]
 			if holds {
 				m.Runs[i].PreProv.Goals[j].CondHolds = true
 			} else {
@@ -202,7 +204,7 @@ func (m *Molly) LoadOutput() error {
 
 			// Set flag if goal falls into time during
 			// execution where postcondition holds.
-			_, holds := timePostHolds[m.Runs[i].PostProv.Goals[j].Time]
+			_, holds := m.Runs[i].TimePostHolds[m.Runs[i].PostProv.Goals[j].Time]
 			if holds {
 				m.Runs[i].PostProv.Goals[j].CondHolds = true
 			} else {

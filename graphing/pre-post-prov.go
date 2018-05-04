@@ -7,6 +7,7 @@ import (
 	neo4j "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 	"github.com/numbleroot/nemo/faultinjectors"
+	fi "github.com/numbleroot/nemo/faultinjectors"
 )
 
 // Structs.
@@ -15,6 +16,7 @@ import (
 type Neo4J struct {
 	Conn1 neo4j.Conn
 	Conn2 neo4j.Conn
+	Runs  []*fi.Run
 }
 
 // Functions.
@@ -191,23 +193,23 @@ func (n *Neo4J) loadProv(iteration uint, provCond string, provData *faultinjecto
 }
 
 // LoadNaiveProv
-func (n *Neo4J) LoadNaiveProv(runs []*faultinjectors.Run) error {
+func (n *Neo4J) LoadNaiveProv() error {
 
 	fmt.Printf("Loading provenance data (naive approach)...\n")
 
-	for i := range runs {
+	for i := range n.Runs {
 
 		// Load precondition provenance.
-		fmt.Printf("\t[%d] Precondition provenance...", runs[i].Iteration)
-		err := n.loadProv(runs[i].Iteration, "pre", runs[i].PreProv)
+		fmt.Printf("\t[%d] Precondition provenance...", n.Runs[i].Iteration)
+		err := n.loadProv(n.Runs[i].Iteration, "pre", n.Runs[i].PreProv)
 		if err != nil {
 			return err
 		}
 		fmt.Printf(" done\n")
 
 		// Load postcondition provenance.
-		fmt.Printf("\t[%d] Postcondition provenance...", runs[i].Iteration)
-		err = n.loadProv(runs[i].Iteration, "post", runs[i].PostProv)
+		fmt.Printf("\t[%d] Postcondition provenance...", n.Runs[i].Iteration)
+		err = n.loadProv(n.Runs[i].Iteration, "post", n.Runs[i].PostProv)
 		if err != nil {
 			return err
 		}
@@ -220,10 +222,10 @@ func (n *Neo4J) LoadNaiveProv(runs []*faultinjectors.Run) error {
 }
 
 // PullPrePostProv
-func (n *Neo4J) PullPrePostProv(runs []*faultinjectors.Run) ([]string, []string, error) {
+func (n *Neo4J) PullPrePostProv() ([]string, []string, error) {
 
-	preDotStrings := make([]string, len(runs))
-	postDotStrings := make([]string, len(runs))
+	preDotStrings := make([]string, len(n.Runs))
+	postDotStrings := make([]string, len(n.Runs))
 
 	// Query for imported correctness condition provenance.
 	stmtProv, err := n.Conn1.PrepareNeo("MATCH path = ({run: {run}, condition: {condition}})-[:DUETO*1]->({run: {run}, condition: {condition}}) RETURN path;")
@@ -231,13 +233,13 @@ func (n *Neo4J) PullPrePostProv(runs []*faultinjectors.Run) ([]string, []string,
 		return nil, nil, err
 	}
 
-	for i := range runs {
+	for i := range n.Runs {
 
 		preEdges := make([]graph.Path, 0, 20)
 		postEdges := make([]graph.Path, 0, 20)
 
 		preEdgesRaw, err := stmtProv.QueryNeo(map[string]interface{}{
-			"run":       runs[i].Iteration,
+			"run":       n.Runs[i].Iteration,
 			"condition": "pre",
 		})
 		if err != nil {
@@ -270,7 +272,7 @@ func (n *Neo4J) PullPrePostProv(runs []*faultinjectors.Run) ([]string, []string,
 		}
 
 		postEdgesRaw, err := stmtProv.QueryNeo(map[string]interface{}{
-			"run":       runs[i].Iteration,
+			"run":       n.Runs[i].Iteration,
 			"condition": "post",
 		})
 		if err != nil {

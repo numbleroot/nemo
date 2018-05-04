@@ -47,8 +47,8 @@ func (r *Report) Prepare(wrkDir string, allResDir string, thisResDir string) err
 	return nil
 }
 
-// GenerateGraphs
-func (r *Report) GenerateGraphs(iters []uint, name string, dotProv []string) error {
+// GenerateFigures
+func (r *Report) GenerateFigures(iters []uint, name string, dotProv []string) error {
 
 	// We require that each element in dotProv
 	// has a corresponding element in names.
