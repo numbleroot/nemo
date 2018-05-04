@@ -7,9 +7,11 @@ img {
 }
 
 .container-fluid { margin: 20px auto 30px; }
-.row { margin-bottom: 25px; }
+.row { margin: 0 0 25px; }
 
 .help-block {
     display: block;
     margin-bottom: 15px;
 }
+
+#runs-table { width: 100%; }

@@ -53,7 +53,7 @@ type Goal struct {
 	Label     string `json:"label"`
 	Table     string `json:"table"`
 	Time      string `json:"time"`
-	CondHolds bool   `json:"-"`
+	CondHolds bool   `json:"conditionHolds,omitempty"`
 }
 
 // Rule
@@ -84,8 +84,8 @@ type Run struct {
 	FailureSpec *FailureSpec `json:"failureSpec"`
 	Model       *Model       `json:"model"`
 	Messages    []*Message   `json:"messages"`
-	PreProv     *ProvData    `json:"-"`
-	PostProv    *ProvData    `json:"-"`
+	PreProv     *ProvData    `json:"preProv,omitempty"`
+	PostProv    *ProvData    `json:"postProv,omitempty"`
 }
 
 // Molly

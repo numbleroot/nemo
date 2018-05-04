@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 
+	"encoding/json"
+	"io/ioutil"
 	"path/filepath"
 
 	"github.com/numbleroot/nemo/faultinjectors"
@@ -156,6 +158,18 @@ func main() {
 	err = debugRun.reporter.Prepare(debugRun.workDir, debugRun.allResultsDir, debugRun.thisResultsDir)
 	if err != nil {
 		log.Fatalf("Failed to prepare debugging report: %v", err)
+	}
+
+	// Marshal collected debugging information to JSON.
+	debuggingJSON, err := json.Marshal(debugRun.faultInj.GetOutput())
+	if err != nil {
+		log.Fatalf("Failed to marshal debugging information to JSON: %v", err)
+	}
+
+	// Write debugging JSON to file 'debugging.json'.
+	err = ioutil.WriteFile(filepath.Join(debugRun.thisResultsDir, "debugging.json"), debuggingJSON, 0644)
+	if err != nil {
+		log.Fatalf("Error writing out debugging.json: %v", err)
 	}
 
 	// Generate and write-out precondition provenance graphs.

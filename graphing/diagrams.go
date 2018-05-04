@@ -28,9 +28,6 @@ func createDOT(edges []graph.Path) (string, error) {
 
 	for i := range edges {
 
-		fmt.Printf("FROM: '%#v'\n\n", edges[i].Nodes[0])
-		fmt.Printf("TO: '%#v'\n\n", edges[i].Nodes[1])
-
 		from := edges[i].Nodes[0].Properties["id"].(string)
 		to := edges[i].Nodes[1].Properties["id"].(string)
 
@@ -43,11 +40,6 @@ func createDOT(edges []graph.Path) (string, error) {
 			fromAttrs["color"] = "\"black\""
 			fromAttrs["fontcolor"] = "\"black\""
 			fromAttrs["fillcolor"] = "\"steelblue1\""
-		} else if edges[i].Nodes[0].Properties["type"] == "next" {
-			fromAttrs["style"] = "\"filled, solid\""
-			fromAttrs["color"] = "\"gray50\""
-			fromAttrs["fontcolor"] = "\"gray50\""
-			fromAttrs["fillcolor"] = "\"limegreen\""
 		} else {
 			fromAttrs["style"] = "\"filled, solid\""
 			fromAttrs["color"] = "\"gray50\""
@@ -69,11 +61,6 @@ func createDOT(edges []graph.Path) (string, error) {
 			toAttrs["color"] = "\"black\""
 			toAttrs["fontcolor"] = "\"black\""
 			toAttrs["fillcolor"] = "\"steelblue1\""
-		} else if edges[i].Nodes[1].Properties["type"] == "next" {
-			toAttrs["style"] = "\"filled, solid\""
-			toAttrs["color"] = "\"gray50\""
-			toAttrs["fontcolor"] = "\"gray50\""
-			toAttrs["fillcolor"] = "\"limegreen\""
 		} else {
 			toAttrs["style"] = "\"filled, solid\""
 			toAttrs["color"] = "\"gray50\""

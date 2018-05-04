@@ -8,25 +8,14 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
-
-	fi "github.com/numbleroot/nemo/faultinjectors"
 )
 
 // Structs.
-
-// Run
-type Run struct {
-	Iteration   uint            `json:"iteration"`
-	Status      string          `json:"status"`
-	Suggestions []string        `json:"suggestions"`
-	FailureSpec *fi.FailureSpec `json:"failureSpec"`
-}
 
 // Report
 type Report struct {
 	resDir     string
 	figuresDir string
-	Runs       []*Run `json:"runs"`
 }
 
 // Functions.
