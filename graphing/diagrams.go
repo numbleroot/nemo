@@ -27,6 +27,14 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 		return nil, err
 	}
 
+	// Make sure the background is transparent.
+	err = dotGraph.AddNode("dataflow", "graph", map[string]string{
+		"bgcolor": "\"transparent\"",
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range edges {
 
 		from := edges[i].Nodes[0].Properties["id"].(string)
@@ -126,6 +134,21 @@ func createDiffDot(diffRunID uint, diffEdges []graph.Path, failedRunID uint, fai
 	}
 
 	err = failedDotGraph.SetDir(true)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Make sure both backgrounds are transparent.
+	err = diffDotGraph.AddNode("dataflow", "graph", map[string]string{
+		"bgcolor": "\"transparent\"",
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = failedDotGraph.AddNode("dataflow", "graph", map[string]string{
+		"bgcolor": "\"transparent\"",
+	})
 	if err != nil {
 		return nil, nil, err
 	}
