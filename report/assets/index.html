@@ -74,7 +74,23 @@
 
             <div class = "row">
 
-                <div id = "good-bad-diff-prov"></div>
+                <div class = "col-md">
+
+                    <div id = "good-bad-diff-prov-1"></div>
+
+                </div>
+
+                <div class = "col-md">
+
+                    <div id = "good-bad-diff-prov-2"></div>
+
+                </div>
+
+                <div class = "col-md">
+
+                    <div id = "good-bad-diff-prov-3"></div>
+
+                </div>
 
             </div>
 
@@ -171,11 +187,18 @@
                 d3.select("#hazard-analysis img").remove();
                 d3.select("#pre-prov img").remove();
                 d3.select("#post-prov img").remove();
+                d3.select("#good-bad-diff-prov-1 img").remove();
+                d3.select("#good-bad-diff-prov-2 img").remove();
+                d3.select("#good-bad-diff-prov-3 img").remove();
 
                 // Add currently selected figures.
                 d3.select("#hazard-analysis").append("img").attr("src", "figures/run_" + newRun.iteration + "_spacetime.svg");
                 d3.select("#pre-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_pre_prov.svg");
                 d3.select("#post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov.svg");
+
+                d3.select("#good-bad-diff-prov-1").append("img").attr("src", "figures/run_0_post_prov.svg");
+                d3.select("#good-bad-diff-prov-2").append("img").attr("src", "figures/run_" + newRun.iteration + "_diff_post_prov-diff.svg");
+                d3.select("#good-bad-diff-prov-3").append("img").attr("src", "figures/run_" + newRun.iteration + "_diff_post_prov-failed.svg");
 
                 if(newRun.status != "success") {
                     // Make relevant areas visible.

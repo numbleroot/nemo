@@ -103,20 +103,31 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 }
 
 // createDiffDot
-func createDiffDot(diffRunID uint, edges []graph.Path, successRunID uint, successPostProv *gographviz.Graph) (*gographviz.Graph, error) {
+func createDiffDot(diffRunID uint, diffEdges []graph.Path, failedRunID uint, failedEdges []graph.Path, successRunID uint, successPostProv *gographviz.Graph) (*gographviz.Graph, *gographviz.Graph, error) {
 
-	dotGraph := gographviz.NewGraph()
+	diffDotGraph := gographviz.NewGraph()
+	failedDotGraph := gographviz.NewGraph()
 
-	// Name the DOT graph.
-	err := dotGraph.SetName("dataflow")
+	// Name the DOT graphs.
+	err := diffDotGraph.SetName("dataflow")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// It is a directed graph.
-	err = dotGraph.SetDir(true)
+	err = failedDotGraph.SetName("dataflow")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	// They both are directed graph.
+	err = diffDotGraph.SetDir(true)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = failedDotGraph.SetDir(true)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	for _, edge := range successPostProv.Edges.Edges {
@@ -130,20 +141,19 @@ func createDiffDot(diffRunID uint, edges []graph.Path, successRunID uint, succes
 			attrMap[string(j)] = edge.Attrs[j]
 		}
 
-		// Copy the edge over to new graph.
-		err := dotGraph.AddEdge(diffSrc, diffDst, edge.Dir, attrMap)
-		if err != nil {
-			return nil, err
-		}
-	}
+		// Overwrite style attribute to hide edge.
+		attrMap["style"] = "\"invis\""
 
-	// Make all edges invisible before copying
-	// successful postcondition provenance graph.
-	err = dotGraph.AddNode("dataflow", "edge", map[string]string{
-		"style": "\"invis\"",
-	})
-	if err != nil {
-		return nil, err
+		// Copy the edge over to new graphs.
+		err := diffDotGraph.AddEdge(diffSrc, diffDst, edge.Dir, attrMap)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		err = failedDotGraph.AddEdge(diffSrc, diffDst, edge.Dir, attrMap)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	for _, node := range successPostProv.Nodes.Nodes {
@@ -159,25 +169,57 @@ func createDiffDot(diffRunID uint, edges []graph.Path, successRunID uint, succes
 		// Overwrite style attribute to hide node.
 		attrMap["style"] = "\"invis\""
 
-		// Copy the node over to new graph.
-		err := dotGraph.AddNode("dataflow", diffName, attrMap)
+		// Copy the node over to new graphs.
+		err := diffDotGraph.AddNode("dataflow", diffName, attrMap)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
+		}
+
+		err = failedDotGraph.AddNode("dataflow", diffName, attrMap)
+		if err != nil {
+			return nil, nil, err
 		}
 	}
 
-	for i := range edges {
+	for i := range diffEdges {
 
-		from := edges[i].Nodes[0].Properties["id"].(string)
-		to := edges[i].Nodes[1].Properties["id"].(string)
+		from := diffEdges[i].Nodes[0].Properties["id"].(string)
+		to := diffEdges[i].Nodes[1].Properties["id"].(string)
 
-		dotGraph.Nodes.Lookup[from].Attrs["style"] = "\"filled, solid\""
-		dotGraph.Nodes.Lookup[to].Attrs["style"] = "\"filled, solid\""
+		// Make nodes visible again that are
+		// part of the selected subgraph.
+		diffDotGraph.Nodes.Lookup[from].Attrs["style"] = "\"filled, solid\""
+		diffDotGraph.Nodes.Lookup[to].Attrs["style"] = "\"filled, solid\""
 
-		for j := range dotGraph.Edges.SrcToDsts[from][to] {
-			fmt.Printf("EDGE: '%#v'\n", dotGraph.Edges.SrcToDsts[from][to][j])
+		// Make edges visible again that are
+		// part of the selected subgraph.
+		for j := range diffDotGraph.Edges.SrcToDsts[from][to] {
+			diffDotGraph.Edges.SrcToDsts[from][to][j].Attrs["style"] = "\"filled, solid\""
 		}
 	}
 
-	return dotGraph, err
+	for i := range failedEdges {
+
+		from := fmt.Sprintf("\"%s\"", failedEdges[i].Nodes[0].Properties["label"].(string))
+		to := fmt.Sprintf("\"%s\"", failedEdges[i].Nodes[1].Properties["label"].(string))
+
+		for j := range failedDotGraph.Nodes.Nodes {
+
+			if (failedDotGraph.Nodes.Nodes[j].Attrs["label"] == from) || (failedDotGraph.Nodes.Nodes[j].Attrs["label"] == to) {
+				failedDotGraph.Nodes.Nodes[j].Attrs["style"] = "\"filled, solid\""
+			}
+		}
+	}
+
+	for i := range failedDotGraph.Edges.Edges {
+
+		from := failedDotGraph.Edges.Edges[i].Src
+		to := failedDotGraph.Edges.Edges[i].Dst
+
+		if (failedDotGraph.Nodes.Lookup[from].Attrs["style"] == "\"filled, solid\"") && (failedDotGraph.Nodes.Lookup[to].Attrs["style"] == "\"filled, solid\"") {
+			failedDotGraph.Edges.Edges[i].Attrs["style"] = "\"filled, solid\""
+		}
+	}
+
+	return diffDotGraph, failedDotGraph, err
 }

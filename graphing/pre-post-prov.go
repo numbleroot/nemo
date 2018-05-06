@@ -24,7 +24,9 @@ type Neo4J struct {
 // loadProv
 func (n *Neo4J) loadProv(iteration uint, provCond string, provData *fi.ProvData) error {
 
-	stmtGoal, err := n.Conn1.PrepareNeo("CREATE (goal:Goal {id: {id}, run: {run}, condition: {condition}, label: {label}, table: {table}, time: {time}, condition_holds: {condition_holds}});")
+	stmtGoal, err := n.Conn1.PrepareNeo(`
+		CREATE (goal:Goal {id: {id}, run: {run}, condition: {condition}, label: {label}, table: {table}, time: {time}, condition_holds: {condition_holds}});
+	`)
 	if err != nil {
 		return err
 	}
@@ -63,12 +65,16 @@ func (n *Neo4J) loadProv(iteration uint, provCond string, provData *fi.ProvData)
 	// During first run: create constraints and indexes.
 	if iteration == 0 {
 
-		_, err = n.Conn1.ExecNeo("CREATE CONSTRAINT ON (goal:Goal) ASSERT goal.id IS UNIQUE;", nil)
+		_, err = n.Conn1.ExecNeo(`
+			CREATE CONSTRAINT ON (goal:Goal) ASSERT goal.id IS UNIQUE;
+		`, nil)
 		if err != nil {
 			return err
 		}
 
-		_, err = n.Conn1.ExecNeo("CREATE INDEX ON :Goal(run);", nil)
+		_, err = n.Conn1.ExecNeo(`
+			CREATE INDEX ON :Goal(run);
+		`, nil)
 		if err != nil {
 			return err
 		}
@@ -81,7 +87,9 @@ func (n *Neo4J) loadProv(iteration uint, provCond string, provData *fi.ProvData)
 
 	resCnt = 0
 
-	stmtRule, err := n.Conn1.PrepareNeo("CREATE (n:Rule {id: {id}, run: {run}, condition: {condition}, label: {label}, table: {table}, type: {type}});")
+	stmtRule, err := n.Conn1.PrepareNeo(`
+		CREATE (n:Rule {id: {id}, run: {run}, condition: {condition}, label: {label}, table: {table}, type: {type}});
+	`)
 	if err != nil {
 		return err
 	}
@@ -117,12 +125,16 @@ func (n *Neo4J) loadProv(iteration uint, provCond string, provData *fi.ProvData)
 	// During first run: create constraints and indexes.
 	if iteration == 0 {
 
-		_, err = n.Conn1.ExecNeo("CREATE CONSTRAINT ON (rule:Rule) ASSERT rule.id IS UNIQUE;", nil)
+		_, err = n.Conn1.ExecNeo(`
+			CREATE CONSTRAINT ON (rule:Rule) ASSERT rule.id IS UNIQUE;
+		`, nil)
 		if err != nil {
 			return err
 		}
 
-		_, err = n.Conn1.ExecNeo("CREATE INDEX ON :Rule(run);", nil)
+		_, err = n.Conn1.ExecNeo(`
+			CREATE INDEX ON :Rule(run);
+		`, nil)
 		if err != nil {
 			return err
 		}
@@ -135,12 +147,20 @@ func (n *Neo4J) loadProv(iteration uint, provCond string, provData *fi.ProvData)
 
 	resCnt = 0
 
-	stmtGoalRuleEdge, err := n.Conn1.PrepareNeo("MATCH (goal:Goal {id: {from}, run: {run}, condition: {condition}}) MATCH (rule:Rule {id: {to}, run: {run}, condition: {condition}}) MERGE (goal)-[:DUETO]->(rule);")
+	stmtGoalRuleEdge, err := n.Conn1.PrepareNeo(`
+		MATCH (goal:Goal {id: {from}, run: {run}, condition: {condition}})
+		MATCH (rule:Rule {id: {to}, run: {run}, condition: {condition}})
+		MERGE (goal)-[:DUETO]->(rule);
+	`)
 	if err != nil {
 		return err
 	}
 
-	stmtRuleGoalEdge, err := n.Conn2.PrepareNeo("MATCH (rule:Rule {id: {from}, run: {run}, condition: {condition}}) MATCH (goal:Goal {id: {to}, run: {run}, condition: {condition}}) MERGE (rule)-[:DUETO]->(goal);")
+	stmtRuleGoalEdge, err := n.Conn2.PrepareNeo(`
+		MATCH (rule:Rule {id: {from}, run: {run}, condition: {condition}})
+		MATCH (goal:Goal {id: {to}, run: {run}, condition: {condition}})
+		MERGE (rule)-[:DUETO]->(goal);
+	`)
 	if err != nil {
 		return err
 	}
@@ -228,7 +248,10 @@ func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, err
 	postDots := make([]*gographviz.Graph, len(n.Runs))
 
 	// Query for imported correctness condition provenance.
-	stmtProv, err := n.Conn1.PrepareNeo("MATCH path = ({run: {run}, condition: {condition}})-[:DUETO*1]->({run: {run}, condition: {condition}}) RETURN path;")
+	stmtProv, err := n.Conn1.PrepareNeo(`
+		MATCH path = ({run: {run}, condition: {condition}})-[:DUETO*1]->({run: {run}, condition: {condition}})
+		RETURN path;
+	`)
 	if err != nil {
 		return nil, nil, err
 	}

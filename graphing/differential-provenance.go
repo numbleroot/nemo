@@ -14,7 +14,7 @@ import (
 // Functions.
 
 // CreateNaiveDiffProv
-func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPostProv *gographviz.Graph) ([]*gographviz.Graph, error) {
+func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPostProv *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, error) {
 
 	exportQuery := `CALL apoc.export.cypher.query("
 	MATCH (failed:Goal {run: ###RUN###, condition: 'post'})
@@ -27,7 +27,8 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 	YIELD file, source, format, nodes, relationships, properties, time
 	RETURN file, source, format, nodes, relationships, properties, time;`
 
-	dots := make([]*gographviz.Graph, len(failedRuns))
+	diffDots := make([]*gographviz.Graph, len(failedRuns))
+	failedDots := make([]*gographviz.Graph, len(failedRuns))
 
 	for i := range failedRuns {
 
@@ -37,7 +38,7 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 		tmpExportQuery := strings.Replace(exportQuery, "###RUN###", fmt.Sprintf("%d", failedRuns[i]), -1)
 		_, err := n.Conn1.ExecNeo(tmpExportQuery, nil)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		// Replace run ID part of node ID in saved queries.
@@ -45,11 +46,11 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 		cmd := exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", sedIDLong, "/tmp/export-differential-provenance")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if strings.TrimSpace(string(out)) != "" {
-			return nil, fmt.Errorf("Wrong return value from docker-compose exec sed run ID command: %s", out)
+			return nil, nil, fmt.Errorf("Wrong return value from docker-compose exec sed run ID command: %s", out)
 		}
 
 		// Replace run ID in saved queries.
@@ -57,33 +58,38 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 		cmd = exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", sedIDShort, "/tmp/export-differential-provenance")
 		out, err = cmd.CombinedOutput()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if strings.TrimSpace(string(out)) != "" {
-			return nil, fmt.Errorf("Wrong return value from docker-compose exec sed run ID command: %s", out)
+			return nil, nil, fmt.Errorf("Wrong return value from docker-compose exec sed run ID command: %s", out)
 		}
 
 		// Import modified difference graph as new one.
-		_, err = n.Conn1.ExecNeo("CALL apoc.cypher.runFile(\"/tmp/export-differential-provenance\")", nil)
+		_, err = n.Conn1.ExecNeo(`
+			CALL apoc.cypher.runFile("/tmp/export-differential-provenance");
+		`, nil)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		// Query for imported differential provenance.
-		stmtDiff, err := n.Conn1.PrepareNeo("MATCH path = ({run: {run}})-[:DUETO*1]->({run: {run}}) RETURN path;")
+		stmtProv, err := n.Conn1.PrepareNeo(`
+			MATCH path = ({run: {run}, condition: "post"})-[:DUETO*1]->({run: {run}, condition: "post"})
+			RETURN path;
+		`)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		edgesRaw, err := stmtDiff.QueryNeo(map[string]interface{}{
+		edgesRaw, err := stmtProv.QueryNeo(map[string]interface{}{
 			"run": diffRunID,
 		})
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		edges := make([]graph.Path, 0, 10)
+		diffEdges := make([]graph.Path, 0, 10)
 
 		for err == nil {
 
@@ -91,30 +97,62 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 
 			edgeRaw, _, err = edgesRaw.NextNeo()
 			if err != nil && err != io.EOF {
-				return nil, err
+				return nil, nil, err
 			} else if err == nil {
 
 				// Type-assert raw edge into well-defined struct.
 				edge := edgeRaw[0].(graph.Path)
 
 				// Append to slice of edges.
-				edges = append(edges, edge)
+				diffEdges = append(diffEdges, edge)
+			}
+		}
+
+		err = edgesRaw.Close()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		edgesRaw, err = stmtProv.QueryNeo(map[string]interface{}{
+			"run": failedRuns[i],
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+
+		failedEdges := make([]graph.Path, 0, 10)
+
+		for err == nil {
+
+			var edgeRaw []interface{}
+
+			edgeRaw, _, err = edgesRaw.NextNeo()
+			if err != nil && err != io.EOF {
+				return nil, nil, err
+			} else if err == nil {
+
+				// Type-assert raw edge into well-defined struct.
+				edge := edgeRaw[0].(graph.Path)
+
+				// Append to slice of edges.
+				failedEdges = append(failedEdges, edge)
 			}
 		}
 
 		// Pass to DOT string generator.
-		dot, err := createDiffDot(diffRunID, edges, 0, successPostProv)
+		diffDot, failedDot, err := createDiffDot(diffRunID, diffEdges, failedRuns[i], failedEdges, 0, successPostProv)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		err = stmtDiff.Close()
+		err = stmtProv.Close()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		dots[i] = dot
+		diffDots[i] = diffDot
+		failedDots[i] = failedDot
 	}
 
-	return dots, nil
+	return diffDots, failedDots, nil
 }

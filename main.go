@@ -32,7 +32,7 @@ type GraphDatabase interface {
 	CloseDB() error
 	LoadNaiveProv() error
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error)
-	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, error)
+	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, error)
 	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
 }
 
@@ -141,7 +141,7 @@ func main() {
 
 	// Create differential provenance graphs for
 	// postcondition provenance.
-	naiveDiffProvDots, err := debugRun.graphDB.CreateNaiveDiffProv(false, debugRun.faultInj.GetFailedRunsIters(), postProvDots[0])
+	naiveDiffDots, naiveFailedDots, err := debugRun.graphDB.CreateNaiveDiffProv(false, debugRun.faultInj.GetFailedRunsIters(), postProvDots[0])
 	if err != nil {
 		log.Fatalf("Could not create the naive differential provenance (bad - good): %v", err)
 	}
@@ -198,10 +198,16 @@ func main() {
 		log.Fatalf("Could not generate postcondition provenance figures for report: %v", err)
 	}
 
-	// Generate and write-out naive differential provenance figures.
-	err = debugRun.reporter.GenerateFigures(debugRun.faultInj.GetFailedRunsIters(), "diff_post_prov", naiveDiffProvDots)
+	// Generate and write-out naive differential provenance (diff) figures.
+	err = debugRun.reporter.GenerateFigures(debugRun.faultInj.GetFailedRunsIters(), "diff_post_prov-diff", naiveDiffDots)
 	if err != nil {
-		log.Fatalf("Could not generate naive differential provenance figures for report: %v", err)
+		log.Fatalf("Could not generate naive differential provenance (diff) figures for report: %v", err)
+	}
+
+	// Generate and write-out naive differential provenance (failed) figures.
+	err = debugRun.reporter.GenerateFigures(debugRun.faultInj.GetFailedRunsIters(), "diff_post_prov-failed", naiveFailedDots)
+	if err != nil {
+		log.Fatalf("Could not generate naive differential provenance (failed) figures for report: %v", err)
 	}
 
 	fmt.Printf("All done! Find the debug report here: %s\n\n", filepath.Join(debugRun.thisResultsDir, "index.html"))
