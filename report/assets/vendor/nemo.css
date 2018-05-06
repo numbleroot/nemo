@@ -6,8 +6,12 @@ img {
     height: auto;
 }
 
-.container-fluid { margin: 20px auto 30px; }
-.row { margin: 0 0 25px; }
+.container-fluid {
+    margin: 50px auto;
+    border-bottom: 1px solid #999;
+}
+
+.row { margin: 0 0 50px; }
 
 .help-block {
     display: block;
@@ -24,6 +28,7 @@ img {
 
 .diff-prov-checker {
     position: absolute;
+    z-index: 3;
     top: 0;
     left: 0;
 }

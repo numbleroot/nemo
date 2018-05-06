@@ -77,17 +77,17 @@
                 <div class = "diff-prov-checker">
 
                     <div>
-                        <input type = "checkbox" id = "diff-prov-check-good" name = "diff-prov-check" value = "good" checked = "checked" />
+                        <input type = "checkbox" id = "diff-prov-check-good" name = "diff-prov-check-good" value = "good" checked = "checked" />
                         <label for = "diff-prov-check-good">Good</label>
                     </div>
 
                     <div>
-                        <input type = "checkbox" id = "diff-prov-check-bad" name = "diff-prov-check" value = "bad" checked = "checked" />
+                        <input type = "checkbox" id = "diff-prov-check-bad" name = "diff-prov-check-bad" value = "bad" checked = "checked" />
                         <label for = "diff-prov-check-bad">Bad</label>
                     </div>
 
                     <div>
-                        <input type = "checkbox" id = "diff-prov-check-diff" name = "diff-prov-check" value = "diff" checked = "checked" />
+                        <input type = "checkbox" id = "diff-prov-check-diff" name = "diff-prov-check-diff" value = "diff" checked = "checked" />
                         <label for = "diff-prov-check-diff">Difference</label>
                     </div>
 
@@ -142,6 +142,33 @@
             d3.select("#diff-prov").style("display", "none");
             d3.select("#pre-post-correctness").style("display", "none");
 
+            $("input[name=diff-prov-check-good]").change(function() {
+
+                if($(this).prop("checked") === true) {
+                    d3.select("#good-bad-diff-prov-good").style("display", "block");
+                } else {
+                    d3.select("#good-bad-diff-prov-good").style("display", "none");
+                }
+            });
+
+            $("input[name=diff-prov-check-bad]").change(function() {
+
+                if($(this).prop("checked") === true) {
+                    d3.select("#good-bad-diff-prov-bad").style("display", "block");
+                } else {
+                    d3.select("#good-bad-diff-prov-bad").style("display", "none");
+                }
+            });
+
+            $("input[name=diff-prov-check-diff]").change(function() {
+
+                if($(this).prop("checked") === true) {
+                    d3.select("#good-bad-diff-prov-diff").style("display", "block");
+                } else {
+                    d3.select("#good-bad-diff-prov-diff").style("display", "none");
+                }
+            });
+
             var refreshRunsTable = function() {
 
                 var tr = tbody.selectAll("tr").data(runs).enter().append("tr")
@@ -190,18 +217,28 @@
                 d3.select("#hazard-analysis img").remove();
                 d3.select("#pre-prov img").remove();
                 d3.select("#post-prov img").remove();
-                d3.select("#good-bad-diff-prov img").remove();
-                d3.select("#good-bad-diff-prov img").remove();
-                d3.select("#good-bad-diff-prov img").remove();
+
+                d3.select("#good-bad-diff-prov-good").remove();
+                d3.select("#good-bad-diff-prov-bad").remove();
+                d3.select("#good-bad-diff-prov-diff").remove();
 
                 // Add currently selected figures.
                 d3.select("#hazard-analysis").append("img").attr("src", "figures/run_" + newRun.iteration + "_spacetime.svg");
                 d3.select("#pre-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_pre_prov.svg");
                 d3.select("#post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov.svg");
 
-                d3.select("#good-bad-diff-prov").append("img").attr("src", "figures/run_0_post_prov.svg").attr("class", "low");
-                d3.select("#good-bad-diff-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_diff_post_prov-diff.svg").attr("class", "medium");
-                d3.select("#good-bad-diff-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_diff_post_prov-failed.svg").attr("class", "top");
+                d3.select("#good-bad-diff-prov").append("img")
+                    .attr("src", "figures/run_0_post_prov.svg")
+                    .attr("id", "good-bad-diff-prov-good")
+                    .attr("class", "low");
+                d3.select("#good-bad-diff-prov").append("img")
+                    .attr("src", "figures/run_" + newRun.iteration + "_diff_post_prov-failed.svg")
+                    .attr("id", "good-bad-diff-prov-bad")
+                    .attr("class", "medium");
+                d3.select("#good-bad-diff-prov").append("img")
+                    .attr("src", "figures/run_" + newRun.iteration + "_diff_post_prov-diff.svg")
+                    .attr("id", "good-bad-diff-prov-diff")
+                    .attr("class", "top");
 
                 if(newRun.status != "success") {
                     // Make relevant areas visible.
