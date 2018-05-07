@@ -244,6 +244,8 @@ func (n *Neo4J) LoadNaiveProv() error {
 // PullPrePostProv
 func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error) {
 
+	fmt.Printf("Pulling pre- and postcondition provenance...")
+
 	preDots := make([]*gographviz.Graph, len(n.Runs))
 	postDots := make([]*gographviz.Graph, len(n.Runs))
 
@@ -335,6 +337,8 @@ func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, err
 	if err != nil {
 		return nil, nil, err
 	}
+
+	fmt.Printf(" done\n\n")
 
 	return preDots, postDots, nil
 }

@@ -77,12 +77,12 @@
                 <div class = "diff-prov-checker">
 
                     <div>
-                        <input type = "checkbox" id = "diff-prov-check-good" name = "diff-prov-check-good" value = "good" checked = "checked" />
+                        <input type = "checkbox" id = "diff-prov-check-good" name = "diff-prov-check-good" value = "good" />
                         <label for = "diff-prov-check-good">Good</label>
                     </div>
 
                     <div>
-                        <input type = "checkbox" id = "diff-prov-check-bad" name = "diff-prov-check-bad" value = "bad" checked = "checked" />
+                        <input type = "checkbox" id = "diff-prov-check-bad" name = "diff-prov-check-bad" value = "bad" />
                         <label for = "diff-prov-check-bad">Bad</label>
                     </div>
 
@@ -230,15 +230,18 @@
                 d3.select("#good-bad-diff-prov").append("img")
                     .attr("src", "figures/run_0_post_prov.svg")
                     .attr("id", "good-bad-diff-prov-good")
-                    .attr("class", "low");
+                    .attr("class", "low")
+                    .style("display", "none");
                 d3.select("#good-bad-diff-prov").append("img")
                     .attr("src", "figures/run_" + newRun.iteration + "_diff_post_prov-failed.svg")
                     .attr("id", "good-bad-diff-prov-bad")
-                    .attr("class", "medium");
+                    .attr("class", "medium")
+                    .style("display", "none");
                 d3.select("#good-bad-diff-prov").append("img")
                     .attr("src", "figures/run_" + newRun.iteration + "_diff_post_prov-diff.svg")
                     .attr("id", "good-bad-diff-prov-diff")
-                    .attr("class", "top");
+                    .attr("class", "top")
+                    .style("display", "block");
 
                 if(newRun.status != "success") {
                     // Make relevant areas visible.
