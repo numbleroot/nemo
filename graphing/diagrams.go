@@ -111,7 +111,13 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 }
 
 // createDiffDot
-func createDiffDot(diffRunID uint, diffEdges []graph.Path, failedRunID uint, failedEdges []graph.Path, successRunID uint, successPostProv *gographviz.Graph) (*gographviz.Graph, *gographviz.Graph, error) {
+func createDiffDot(diffRunID uint, diffEdges []graph.Path, failedRunID uint, failedEdges []graph.Path, successRunID uint, successPostProv *gographviz.Graph, missingEvents []graph.Node) (*gographviz.Graph, *gographviz.Graph, error) {
+
+	// Create map for lookup of missing events.
+	missingMap := make(map[string]bool)
+	for m := range missingEvents {
+		missingMap[missingEvents[m].Properties["id"].(string)] = true
+	}
 
 	diffDotGraph := gographviz.NewGraph()
 	failedDotGraph := gographviz.NewGraph()
@@ -218,6 +224,20 @@ func createDiffDot(diffRunID uint, diffEdges []graph.Path, failedRunID uint, fai
 		// part of the selected subgraph.
 		for j := range diffDotGraph.Edges.SrcToDsts[from][to] {
 			diffDotGraph.Edges.SrcToDsts[from][to][j].Attrs["style"] = "\"filled, solid\""
+		}
+
+		// If one of the nodes is one of the
+		// missing events, mark it specifically.
+		_, isMissingFrom := missingMap[from]
+		if isMissingFrom {
+			diffDotGraph.Nodes.Lookup[from].Attrs["style"] = "\"filled, dashed, bold\""
+			diffDotGraph.Nodes.Lookup[from].Attrs["color"] = "\"crimson\""
+		}
+
+		_, isMissingTo := missingMap[to]
+		if isMissingTo {
+			diffDotGraph.Nodes.Lookup[to].Attrs["style"] = "\"filled, dashed, bold\""
+			diffDotGraph.Nodes.Lookup[to].Attrs["color"] = "\"crimson\""
 		}
 	}
 
