@@ -9,12 +9,13 @@ import (
 
 	"github.com/awalterschulze/gographviz"
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
+	fi "github.com/numbleroot/nemo/faultinjectors"
 )
 
 // Functions.
 
 // CreateNaiveDiffProv
-func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPostProv *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]graph.Node, error) {
+func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPostProv *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, []*fi.Missing, error) {
 
 	fmt.Printf("Creating differential provenance (good - bad), naive way...")
 
@@ -31,7 +32,7 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 
 	diffDots := make([]*gographviz.Graph, len(failedRuns))
 	failedDots := make([]*gographviz.Graph, len(failedRuns))
-	allMissingEvents := make([][]graph.Node, len(failedRuns))
+	missingEvents := make([]*fi.Missing, len(failedRuns))
 
 	for i := range failedRuns {
 
@@ -110,15 +111,30 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 			return nil, nil, nil, err
 		}
 
-		missingEvents := make([]graph.Node, 0, 6)
-
-		// Add the rule node.
-		missingEvents = append(missingEvents, leavesAll[0][0].(graph.Node))
+		rule := leavesAll[0][0].(graph.Node)
+		missing := &fi.Missing{
+			Rule: &fi.Rule{
+				ID:    rule.Properties["id"].(string),
+				Label: rule.Properties["label"].(string),
+				Table: rule.Properties["table"].(string),
+				Type:  rule.Properties["type"].(string),
+			},
+			Goals: make([]*fi.Goal, 0, 2),
+		}
 
 		// Add all leaves.
 		leaves := leavesAll[0][1].([]interface{})
 		for l := range leaves {
-			missingEvents = append(missingEvents, leaves[l].(graph.Node))
+
+			leaf := leaves[l].(graph.Node)
+
+			missing.Goals = append(missing.Goals, &fi.Goal{
+				ID:        leaf.Properties["id"].(string),
+				Label:     leaf.Properties["label"].(string),
+				Table:     leaf.Properties["table"].(string),
+				Time:      leaf.Properties["time"].(string),
+				CondHolds: leaf.Properties["condition_holds"].(bool),
+			})
 		}
 
 		err = leavesRaw.Close()
@@ -198,7 +214,7 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 		}
 
 		// Pass to DOT string generator.
-		diffDot, failedDot, err := createDiffDot(diffRunID, diffEdges, failedRuns[i], failedEdges, 0, successPostProv, missingEvents)
+		diffDot, failedDot, err := createDiffDot(diffRunID, diffEdges, failedRuns[i], failedEdges, 0, successPostProv, missing)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -210,10 +226,10 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 
 		diffDots[i] = diffDot
 		failedDots[i] = failedDot
-		allMissingEvents[i] = missingEvents
+		missingEvents[i] = missing
 	}
 
 	fmt.Printf(" done\n\n")
 
-	return diffDots, failedDots, allMissingEvents, nil
+	return diffDots, failedDots, missingEvents, nil
 }

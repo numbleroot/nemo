@@ -77,6 +77,12 @@ type ProvData struct {
 	Edges []Edge `json:"edges"`
 }
 
+// Missing
+type Missing struct {
+	Rule  *Rule
+	Goals []*Goal
+}
+
 // Run
 type Run struct {
 	Iteration     uint            `json:"iteration"`
@@ -88,6 +94,7 @@ type Run struct {
 	TimePreHolds  map[string]bool `json:"timePreHolds,omitempty"`
 	PostProv      *ProvData       `json:"postProv,omitempty"`
 	TimePostHolds map[string]bool `json:"timePostHolds,omitempty"`
+	MissingEvents *Missing        `json:"missingEvents,omitempty"`
 }
 
 // Molly

@@ -6,6 +6,7 @@ import (
 
 	"github.com/awalterschulze/gographviz"
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
+	fi "github.com/numbleroot/nemo/faultinjectors"
 )
 
 // Functions.
@@ -111,12 +112,13 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 }
 
 // createDiffDot
-func createDiffDot(diffRunID uint, diffEdges []graph.Path, failedRunID uint, failedEdges []graph.Path, successRunID uint, successPostProv *gographviz.Graph, missingEvents []graph.Node) (*gographviz.Graph, *gographviz.Graph, error) {
+func createDiffDot(diffRunID uint, diffEdges []graph.Path, failedRunID uint, failedEdges []graph.Path, successRunID uint, successPostProv *gographviz.Graph, missing *fi.Missing) (*gographviz.Graph, *gographviz.Graph, error) {
 
 	// Create map for lookup of missing events.
 	missingMap := make(map[string]bool)
-	for m := range missingEvents {
-		missingMap[missingEvents[m].Properties["id"].(string)] = true
+	missingMap[missing.Rule.ID] = true
+	for m := range missing.Goals {
+		missingMap[missing.Goals[m].ID] = true
 	}
 
 	diffDotGraph := gographviz.NewGraph()

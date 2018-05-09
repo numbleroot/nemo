@@ -11,10 +11,9 @@ import (
 	"path/filepath"
 
 	"github.com/awalterschulze/gographviz"
-	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
-	"github.com/numbleroot/nemo/faultinjectors"
-	"github.com/numbleroot/nemo/graphing"
-	"github.com/numbleroot/nemo/report"
+	fi "github.com/numbleroot/nemo/faultinjectors"
+	gr "github.com/numbleroot/nemo/graphing"
+	re "github.com/numbleroot/nemo/report"
 )
 
 // Interfaces.
@@ -22,18 +21,18 @@ import (
 // FaultInjector
 type FaultInjector interface {
 	LoadOutput() error
-	GetOutput() []*faultinjectors.Run
+	GetOutput() []*fi.Run
 	GetRunsIters() []uint
 	GetFailedRunsIters() []uint
 }
 
 // GraphDatabase
 type GraphDatabase interface {
-	InitGraphDB(string, []*faultinjectors.Run) error
+	InitGraphDB(string, []*fi.Run) error
 	CloseDB() error
 	LoadNaiveProv() error
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error)
-	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]graph.Node, error)
+	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, []*fi.Missing, error)
 	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
 }
 
@@ -81,12 +80,12 @@ func main() {
 		workDir:        curDir,
 		allResultsDir:  filepath.Join(curDir, "results"),
 		thisResultsDir: filepath.Join(curDir, "results", filepath.Base(faultInjOut)),
-		faultInj: &faultinjectors.Molly{
+		faultInj: &fi.Molly{
 			Run:       filepath.Base(faultInjOut),
 			OutputDir: faultInjOut,
 		},
-		graphDB:  &graphing.Neo4J{},
-		reporter: &report.Report{},
+		graphDB:  &gr.Neo4J{},
+		reporter: &re.Report{},
 	}
 
 	// Ensure the results directory for this debug run exists.
@@ -142,7 +141,7 @@ func main() {
 
 	// Create differential provenance graphs for
 	// postcondition provenance.
-	naiveDiffDots, naiveFailedDots, _, err := debugRun.graphDB.CreateNaiveDiffProv(false, debugRun.faultInj.GetFailedRunsIters(), postProvDots[0])
+	naiveDiffDots, naiveFailedDots, missingEvents, err := debugRun.graphDB.CreateNaiveDiffProv(false, debugRun.faultInj.GetFailedRunsIters(), postProvDots[0])
 	if err != nil {
 		log.Fatalf("Could not create the naive differential provenance (bad - good): %v", err)
 	}
@@ -169,8 +168,20 @@ func main() {
 		log.Fatalf("Failed to prepare debugging report: %v", err)
 	}
 
+	// Retrieve current state of run output.
+	runs := debugRun.faultInj.GetOutput()
+	iters := debugRun.faultInj.GetRunsIters()
+	failedIters := debugRun.faultInj.GetFailedRunsIters()
+
+	// Enrich with missing events.
+	j := 0
+	for i := range failedIters {
+		runs[failedIters[i]].MissingEvents = missingEvents[j]
+		j++
+	}
+
 	// Marshal collected debugging information to JSON.
-	debuggingJSON, err := json.Marshal(debugRun.faultInj.GetOutput())
+	debuggingJSON, err := json.Marshal(runs)
 	if err != nil {
 		log.Fatalf("Failed to marshal debugging information to JSON: %v", err)
 	}
@@ -182,31 +193,31 @@ func main() {
 	}
 
 	// Generate and write-out hazard analysis figures.
-	err = debugRun.reporter.GenerateFigures(debugRun.faultInj.GetRunsIters(), "spacetime", hazardDots)
+	err = debugRun.reporter.GenerateFigures(iters, "spacetime", hazardDots)
 	if err != nil {
 		log.Fatalf("Could not generate hazard analysis figures for report: %v", err)
 	}
 
 	// Generate and write-out precondition provenance figures.
-	err = debugRun.reporter.GenerateFigures(debugRun.faultInj.GetRunsIters(), "pre_prov", preProvDots)
+	err = debugRun.reporter.GenerateFigures(iters, "pre_prov", preProvDots)
 	if err != nil {
 		log.Fatalf("Could not generate precondition provenance figures for report: %v", err)
 	}
 
 	// Generate and write-out postcondition provenance figures.
-	err = debugRun.reporter.GenerateFigures(debugRun.faultInj.GetRunsIters(), "post_prov", postProvDots)
+	err = debugRun.reporter.GenerateFigures(iters, "post_prov", postProvDots)
 	if err != nil {
 		log.Fatalf("Could not generate postcondition provenance figures for report: %v", err)
 	}
 
 	// Generate and write-out naive differential provenance (diff) figures.
-	err = debugRun.reporter.GenerateFigures(debugRun.faultInj.GetFailedRunsIters(), "diff_post_prov-diff", naiveDiffDots)
+	err = debugRun.reporter.GenerateFigures(failedIters, "diff_post_prov-diff", naiveDiffDots)
 	if err != nil {
 		log.Fatalf("Could not generate naive differential provenance (diff) figures for report: %v", err)
 	}
 
 	// Generate and write-out naive differential provenance (failed) figures.
-	err = debugRun.reporter.GenerateFigures(debugRun.faultInj.GetFailedRunsIters(), "diff_post_prov-failed", naiveFailedDots)
+	err = debugRun.reporter.GenerateFigures(failedIters, "diff_post_prov-failed", naiveFailedDots)
 	if err != nil {
 		log.Fatalf("Could not generate naive differential provenance (failed) figures for report: %v", err)
 	}
