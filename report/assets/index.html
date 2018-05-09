@@ -70,9 +70,14 @@
         <div id = "diff-prov" class = "container-fluid">
 
             <h3>Good - Bad = Differential</h3>
-            <span class = "help-block">Which events is the bad execution missing compared to the good one?</span>
+            <span class = "help-block">Which events is the bad execution missing compared to the good one? Frontier elements are bordered <span style = "color: #dc143c;">dashed red</span>.</span>
 
-            <div id = "diff-prov-missing"></div>
+            <div>
+
+                <h6>Rule &nbsp;<code id = "diff-prov-missing-rule"></code>&nbsp; needs to fire to achieve success, but the following events are not taking place:</h6>
+                <ul id = "diff-prov-missing-goals"></ul>
+
+            </div>
 
             <div class = "row anchor">
 
@@ -229,9 +234,9 @@
                 d3.select("#pre-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_pre_prov.svg");
                 d3.select("#post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov.svg");
 
-                d3.select("#diff-prov-missing").append("ul").append("li").append("code").text(newRun.missingEvents.Rule.label);
+                d3.select("#diff-prov-missing-rule").text(newRun.missingEvents.Rule.label);
                 newRun.missingEvents.Goals.forEach(function(goal) {
-                    d3.select("#diff-prov-missing ul").append("li").append("code").text(goal.label);
+                    d3.select("#diff-prov-missing-goals").append("li").append("code").text(goal.label + " @ " + goal.time);
                 });
 
                 d3.select("#good-bad-diff-prov").append("img")
