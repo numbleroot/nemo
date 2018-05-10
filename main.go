@@ -34,6 +34,7 @@ type GraphDatabase interface {
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error)
 	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, []*fi.Missing, error)
 	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
+	FindAsyncPairs() ([]*fi.Correction, error)
 }
 
 // Reporter
@@ -102,6 +103,10 @@ func main() {
 
 	// Graph queries.
 
+	// Determine the IDs of all and all failed executions.
+	iters := debugRun.faultInj.GetRunsIters()
+	failedIters := debugRun.faultInj.GetFailedRunsIters()
+
 	// Connect to graph database docker container.
 	err = debugRun.graphDB.InitGraphDB(graphDBConn, debugRun.faultInj.GetOutput())
 	if err != nil {
@@ -152,29 +157,23 @@ func main() {
 		log.Fatalf("Failed to perform hazard analysis of simulation: %v", err)
 	}
 
-	// Debugging.
-
 	// Determine correction suggestions (pre ~> diffprov).
-	// TODO: Implement this.
+	if len(failedIters) > 0 {
 
-	// Determine extension suggestions (diffprov).
-	// TODO: Implement this.
+		prePostPairs, err := debugRun.graphDB.FindAsyncPairs()
+		if err != nil {
+			log.Fatalf("Error while putting together important events pairs from pre ~> post: %v", err)
+		}
+
+		fmt.Printf("PRE_POST_PAIRS:\n'%#v'\n\n", prePostPairs)
+	}
 
 	// Reporting.
 
-	// Prepare report webpage containing all insights and suggestions.
-	err = debugRun.reporter.Prepare(debugRun.workDir, debugRun.allResultsDir, debugRun.thisResultsDir)
-	if err != nil {
-		log.Fatalf("Failed to prepare debugging report: %v", err)
-	}
-
 	// Retrieve current state of run output.
-	runs := debugRun.faultInj.GetOutput()
-	iters := debugRun.faultInj.GetRunsIters()
-	failedIters := debugRun.faultInj.GetFailedRunsIters()
-
 	// Enrich with missing events.
 	j := 0
+	runs := debugRun.faultInj.GetOutput()
 	for i := range failedIters {
 		runs[failedIters[i]].MissingEvents = missingEvents[j]
 		j++
@@ -184,6 +183,12 @@ func main() {
 	debuggingJSON, err := json.Marshal(runs)
 	if err != nil {
 		log.Fatalf("Failed to marshal debugging information to JSON: %v", err)
+	}
+
+	// Prepare report webpage containing all insights and suggestions.
+	err = debugRun.reporter.Prepare(debugRun.workDir, debugRun.allResultsDir, debugRun.thisResultsDir)
+	if err != nil {
+		log.Fatalf("Failed to prepare debugging report: %v", err)
 	}
 
 	// Write debugging JSON to file 'debugging.json'.
