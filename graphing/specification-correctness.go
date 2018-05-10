@@ -140,6 +140,7 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Corr
 
 			// At least one message passing event in precondition provenance.
 
+			// TODO: Clean up print-outs of rules (get rid of '_provX' at the end).
 			preAsyncsLabel := fmt.Sprintf("<code>%s</code>", preAsyncs[0].Properties["label"])
 			for j := 1; j < len(preAsyncs); j++ {
 				preAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", preAsyncsLabel, preAsyncs[j].Properties["label"])
