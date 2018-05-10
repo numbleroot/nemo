@@ -157,16 +157,19 @@ func main() {
 		log.Fatalf("Failed to perform hazard analysis of simulation: %v", err)
 	}
 
+	var corrections [][]string
+	var prePostPairs [][]*fi.Correction
+
 	// Determine correction suggestions (pre ~> diffprov).
 	if len(failedIters) > 0 {
 
-		corrections, prePostPairs, err := debugRun.graphDB.GenerateCorrections(failedIters)
+		corrections, prePostPairs, err = debugRun.graphDB.GenerateCorrections(failedIters)
 		if err != nil {
 			log.Fatalf("Error while putting together important events pairs from pre ~> post: %v", err)
 		}
 
-		fmt.Printf("CORRECTIONS:\n'%#v'\n\n", corrections)
-		fmt.Printf("PRE_POST_PAIRS:\n'%#v'\n\n", prePostPairs)
+		// fmt.Printf("CORRECTIONS:\n'%#v'\n\n", corrections)
+		// fmt.Printf("PRE_POST_PAIRS:\n'%#v'\n\n", prePostPairs)
 	}
 
 	// Reporting.
@@ -177,6 +180,8 @@ func main() {
 	runs := debugRun.faultInj.GetOutput()
 	for i := range failedIters {
 		runs[failedIters[i]].MissingEvents = missingEvents[j]
+		runs[failedIters[i]].Corrections = corrections[j]
+		runs[failedIters[i]].CorrectionsPairs = prePostPairs[j]
 		j++
 	}
 

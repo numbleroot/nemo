@@ -103,6 +103,8 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]graph.Node, []graph.Node, err
 // GenerateCorrections
 func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Correction, error) {
 
+	fmt.Printf("Running generation of suggestions for corrections (pre ~> post)...")
+
 	// Prepare final slices to return.
 	allCorrections := make([][]string, len(failedRuns))
 	allPrePostPairs := make([][]*fi.Correction, len(failedRuns))
@@ -121,23 +123,60 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Corr
 
 		if len(preAsyncs) < 1 {
 
+			// No message passing events in precondition provenance.
+
 			if len(diffAsyncs) < 1 {
-				corrections = append(corrections, "No message passing event required for achieving precondition and none left that has not already been taken place for achieving the postcondition. We still experience a fault. What are the use cases?")
+				// No message passing events in differential postcondition provenance.
+				corrections = append(corrections, "No message passing event required for achieving precondition.")
+				corrections = append(corrections, "No message passing event left required for achieving postcondition.")
+				corrections = append(corrections, "Yet we saw a fault occuring. Discuss: What are the use cases?")
 			} else {
-				corrections = append(corrections, "Achieving the precondition does not seem to depend on any message passing event. There are, though, message passing events missing that prevent the postcondition from being achieved. Introduce more fault-tolerance through replication and retries.")
+				// At least one message passing event in differential postcondition provenance.
+				corrections = append(corrections, "No message passing event required for achieving precondition.")
+				corrections = append(corrections, "There exist message passing events missing that prevent achieving the postcondition.")
+				corrections = append(corrections, "Suggestion: Introduce more fault-tolerance through replication and retries.")
 			}
 		} else {
 
-			if len(diffAsyncs) < 1 {
+			// At least one message passing event in precondition provenance.
 
+			preAsyncsLabel := fmt.Sprintf("<code>%s</code>", preAsyncs[0].Properties["label"])
+			for j := 1; j < len(preAsyncs); j++ {
+				preAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", preAsyncsLabel, preAsyncs[j].Properties["label"])
+			}
+
+			if len(diffAsyncs) < 1 {
+				// No message passing events in differential postcondition provenance.
+				corrections = append(corrections, fmt.Sprintf("%d message passing event(s) required for achieving precondition: %s", len(preAsyncs), preAsyncsLabel))
+				corrections = append(corrections, "No message passing event left required for achieving postcondition.")
+				corrections = append(corrections, "Yet we saw a fault occuring. Discuss: What are the use cases?")
 			} else {
 
+				diffAsyncsLabel := fmt.Sprintf("<code>%s</code>", diffAsyncs[0].Properties["label"])
+				for j := 1; j < len(diffAsyncs); j++ {
+					diffAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", diffAsyncsLabel, diffAsyncs[j].Properties["label"])
+				}
+
+				// At least one message passing event in differential postcondition provenance.
+				corrections = append(corrections, fmt.Sprintf("%d message passing event(s) required for achieving precondition: %s", len(preAsyncs), preAsyncsLabel))
+				corrections = append(corrections, fmt.Sprintf("%d message passing event(s) left required for achieving postcondition: %s", len(diffAsyncs), diffAsyncsLabel))
+				corrections = append(corrections, fmt.Sprintf("How can you change the program to semantically depend '%s' on '%s'?", preAsyncsLabel, diffAsyncsLabel))
+				corrections = append(corrections, fmt.Sprintf("How can you make the firing of '%s' dependent on guaranteed prior firing of '%s'?", preAsyncsLabel, diffAsyncsLabel))
+				corrections = append(corrections, "TODO: Graphical aids...")
+
+				// TODO: This is the important area.
 			}
+		}
+
+		if len(corrections) == 0 {
+			corrections = append(corrections, "No correction suggestions to make!")
 		}
 
 		allCorrections[i] = corrections
 		allPrePostPairs[i] = prePostPairs
 	}
+
+	fmt.Printf(" done\n\n")
 
 	return allCorrections, allPrePostPairs, nil
 }

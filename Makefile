@@ -4,7 +4,6 @@ all: clean build
 
 clean:
 	go clean -i ./...
-	rm -rf results/*
 	sudo rm -rf tmp/*
 
 deps:

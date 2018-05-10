@@ -111,6 +111,8 @@
             <h3>Specification Provenance (Pre <i class = "fas fa-long-arrow-alt-right"></i> Post)</h3>
             <span class = "help-block">Can we suggest modifications to precondition events that make the precondition stricter?</span>
 
+            <ul id = "pre-post-correctness-corrections"></ul>
+
             <div class = "row">
 
                 <div class = "col-md">
@@ -238,6 +240,13 @@
                 newRun.missingEvents.Goals.forEach(function(goal) {
                     d3.select("#diff-prov-missing-goals").append("li").append("code").text(goal.label + " @ " + goal.time);
                 });
+
+                if (typeof newRun.corrections !== 'undefined') {
+
+                    newRun.corrections.forEach(function(corr) {
+                        d3.select("#pre-post-correctness-corrections").append("li").html(corr);
+                    });
+                }
 
                 d3.select("#good-bad-diff-prov").append("img")
                     .attr("src", "figures/run_0_post_prov.svg")
