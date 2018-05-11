@@ -30,7 +30,7 @@
         <div id = "hazard" class = "container-fluid">
 
             <h3>Hazard Analysis</h3>
-            <span class = "help-block">When do <span style = "color: #cd2626;">precondition</span> and <span style = "color: #009acd;">postcondition</span> hold? If a window exists between pre- and postcondition, this allows for faults.</span>
+            <span class = "help-block">When do <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> hold? If a window exists between pre- and postcondition, this allows for faults.</span>
 
             <div class = "row">
 
@@ -43,7 +43,7 @@
         <div id = "pre-post-prov" class = "container-fluid">
 
             <h3>Pre- and Postcondition Provenance</h3>
-            <span class = "help-block">Which events were required for <span style = "color: #cd2626;">precondition</span> and <span style = "color: #009acd;">postcondition</span> to be achieved? Message passing events are marked with a <span style = "color: #ff4500;">bold</span> border.</span>
+            <span class = "help-block">Which events were required for <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> to be achieved? Message passing events are marked with a <span style = "color: #7cfc00;">bold</span> border.</span>
 
             <div class = "row">
 
@@ -67,10 +67,39 @@
 
         </div>
 
+        <div id = "pre-post-correctness" class = "container-fluid">
+
+            <h3>Specification Provenance (Pre <i class = "fas fa-long-arrow-alt-right"></i> Post)</h3>
+            <span class = "help-block">Can we suggest modifications to precondition events that make the precondition stricter?</span>
+
+            <ul id = "pre-post-correctness-corrections"></ul>
+
+            <div class = "row">
+
+                <div class = "col-md">
+
+                    <h4>Precondition</h4>
+
+                    <div id = "pre-prov"></div>
+
+                </div>
+
+                <div class = "col-md">
+
+                    <h4>Postcondition</h4>
+
+                    <div id = "post-prov"></div>
+
+                </div>
+
+            </div>
+
+        </div>
+
         <div id = "diff-prov" class = "container-fluid">
 
             <h3>Good - Bad = Differential</h3>
-            <span class = "help-block">Which events is the bad execution missing compared to the good one? Frontier elements are bordered <span style = "color: #dc143c;">dashed red</span>.</span>
+            <span class = "help-block">Which events is the bad execution missing compared to the good one? Frontier elements are bordered <span style = "color: #c71585;">dashed red</span>.</span>
 
             <div>
 
@@ -101,35 +130,6 @@
                 </div>
 
                 <div id = "good-bad-diff-prov"></div>
-
-            </div>
-
-        </div>
-
-        <div id = "pre-post-correctness" class = "container-fluid">
-
-            <h3>Specification Provenance (Pre <i class = "fas fa-long-arrow-alt-right"></i> Post)</h3>
-            <span class = "help-block">Can we suggest modifications to precondition events that make the precondition stricter?</span>
-
-            <ul id = "pre-post-correctness-corrections"></ul>
-
-            <div class = "row">
-
-                <div class = "col-md">
-
-                    <h4>Precondition</h4>
-
-                    <div id = "pre-prov"></div>
-
-                </div>
-
-                <div class = "col-md">
-
-                    <h4>Postcondition</h4>
-
-                    <div id = "post-prov"></div>
-
-                </div>
 
             </div>
 
@@ -227,9 +227,17 @@
                 d3.select("#pre-prov img").remove();
                 d3.select("#post-prov img").remove();
 
+                d3.select("#diff-prov-check-good").property("checked", false);
+                d3.select("#diff-prov-check-bad").property("checked", false);
+                d3.select("#diff-prov-check-diff").property("checked", true);
+
                 d3.select("#good-bad-diff-prov-good").remove();
                 d3.select("#good-bad-diff-prov-bad").remove();
                 d3.select("#good-bad-diff-prov-diff").remove();
+
+                d3.select("#diff-prov-missing-rule").html("");
+                d3.select("#diff-prov-missing-goals").html("");
+                d3.select("#pre-post-correctness-corrections").html("");
 
                 // Add currently selected figures.
                 d3.select("#hazard-analysis").append("img").attr("src", "figures/run_" + newRun.iteration + "_spacetime.svg");

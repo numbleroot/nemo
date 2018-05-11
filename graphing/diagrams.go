@@ -52,16 +52,16 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 		// Style node differently based on time notion.
 		if edges[i].Nodes[0].Properties["type"] == "async" {
 			fromAttrs["style"] = "\"filled, bold\""
-			fromAttrs["color"] = "\"springgreen3\""
+			fromAttrs["color"] = "\"lawngreen\""
 		}
 
 		// Style node differently based on achieved condition.
 		if (edges[i].Nodes[0].Properties["condition_holds"] == true) && (graphType == "pre") {
-			fromAttrs["color"] = "\"firebrick3\""
-			fromAttrs["fillcolor"] = "\"firebrick3\""
+			fromAttrs["color"] = "\"firebrick\""
+			fromAttrs["fillcolor"] = "\"firebrick\""
 		} else if (edges[i].Nodes[0].Properties["condition_holds"] == true) && (graphType == "post") {
-			fromAttrs["color"] = "\"deepskyblue3\""
-			fromAttrs["fillcolor"] = "\"deepskyblue3\""
+			fromAttrs["color"] = "\"deepskyblue\""
+			fromAttrs["fillcolor"] = "\"deepskyblue\""
 		}
 
 		// Alter shape based on being rule or goal.
@@ -82,16 +82,16 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 		// Style node differently based on time notion.
 		if edges[i].Nodes[1].Properties["type"] == "async" {
 			toAttrs["style"] = "\"filled, bold\""
-			toAttrs["color"] = "\"springgreen3\""
+			toAttrs["color"] = "\"lawngreen\""
 		}
 
 		// Style node differently based on achieved condition.
 		if (edges[i].Nodes[1].Properties["condition_holds"] == true) && (graphType == "pre") {
-			toAttrs["color"] = "\"firebrick3\""
-			toAttrs["fillcolor"] = "\"firebrick3\""
+			toAttrs["color"] = "\"firebrick\""
+			toAttrs["fillcolor"] = "\"firebrick\""
 		} else if (edges[i].Nodes[1].Properties["condition_holds"] == true) && (graphType == "post") {
-			toAttrs["color"] = "\"deepskyblue3\""
-			toAttrs["fillcolor"] = "\"deepskyblue3\""
+			toAttrs["color"] = "\"deepskyblue\""
+			toAttrs["fillcolor"] = "\"deepskyblue\""
 		}
 
 		// Alter shape based on being rule or goal.
@@ -247,13 +247,13 @@ func createDiffDot(diffRunID uint, diffEdges []graph.Path, failedRunID uint, fai
 		_, isMissingFrom := missingMap[from]
 		if isMissingFrom {
 			diffDotGraph.Nodes.Lookup[from].Attrs["style"] = "\"filled, dashed, bold\""
-			diffDotGraph.Nodes.Lookup[from].Attrs["color"] = "\"crimson\""
+			diffDotGraph.Nodes.Lookup[from].Attrs["color"] = "\"mediumvioletred\""
 		}
 
 		_, isMissingTo := missingMap[to]
 		if isMissingTo {
 			diffDotGraph.Nodes.Lookup[to].Attrs["style"] = "\"filled, dashed, bold\""
-			diffDotGraph.Nodes.Lookup[to].Attrs["color"] = "\"crimson\""
+			diffDotGraph.Nodes.Lookup[to].Attrs["color"] = "\"mediumvioletred\""
 		}
 	}
 

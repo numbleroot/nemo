@@ -40,8 +40,8 @@ func (n *Neo4J) CreateHazardAnalysis(faultInjOut string) ([]*gographviz.Graph, e
 
 			spaceTimeGraph.Nodes.Nodes[j].Attrs.Extend(map[gographviz.Attr]string{
 				"style":     "\"solid, filled\"",
-				"color":     "\"gray75\"",
-				"fillcolor": "\"gray75\"",
+				"color":     "\"lightgrey\"",
+				"fillcolor": "\"lightgrey\"",
 			})
 
 			// Split into naming and time parts.
@@ -61,8 +61,8 @@ func (n *Neo4J) CreateHazardAnalysis(faultInjOut string) ([]*gographviz.Graph, e
 			if preHolds {
 
 				spaceTimeGraph.Nodes.Nodes[j].Attrs.Extend(map[gographviz.Attr]string{
-					"color":     "\"firebrick3\"",
-					"fillcolor": "\"firebrick3\"",
+					"color":     "\"firebrick\"",
+					"fillcolor": "\"firebrick\"",
 				})
 			}
 
@@ -74,7 +74,7 @@ func (n *Neo4J) CreateHazardAnalysis(faultInjOut string) ([]*gographviz.Graph, e
 			if postHolds {
 
 				spaceTimeGraph.Nodes.Nodes[j].Attrs.Extend(map[gographviz.Attr]string{
-					"fillcolor": "\"deepskyblue3\"",
+					"fillcolor": "\"deepskyblue\"",
 				})
 			}
 		}
