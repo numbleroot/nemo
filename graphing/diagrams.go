@@ -52,7 +52,7 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 		// Style node differently based on time notion.
 		if edges[i].Nodes[0].Properties["type"] == "async" {
 			fromAttrs["style"] = "\"filled, bold\""
-			fromAttrs["color"] = "\"orangered\""
+			fromAttrs["color"] = "\"springgreen3\""
 		}
 
 		// Style node differently based on achieved condition.
@@ -62,6 +62,13 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 		} else if (edges[i].Nodes[0].Properties["condition_holds"] == true) && (graphType == "post") {
 			fromAttrs["color"] = "\"deepskyblue3\""
 			fromAttrs["fillcolor"] = "\"deepskyblue3\""
+		}
+
+		// Alter shape based on being rule or goal.
+		if edges[i].Nodes[0].Labels[0] == "Rule" {
+			fromAttrs["shape"] = "rect"
+		} else {
+			fromAttrs["shape"] = "ellipse"
 		}
 
 		toAttrs := make(map[string]string)
@@ -75,7 +82,7 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 		// Style node differently based on time notion.
 		if edges[i].Nodes[1].Properties["type"] == "async" {
 			toAttrs["style"] = "\"filled, bold\""
-			toAttrs["color"] = "\"orangered\""
+			toAttrs["color"] = "\"springgreen3\""
 		}
 
 		// Style node differently based on achieved condition.
@@ -85,6 +92,13 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 		} else if (edges[i].Nodes[1].Properties["condition_holds"] == true) && (graphType == "post") {
 			toAttrs["color"] = "\"deepskyblue3\""
 			toAttrs["fillcolor"] = "\"deepskyblue3\""
+		}
+
+		// Alter shape based on being rule or goal.
+		if edges[i].Nodes[1].Labels[0] == "Rule" {
+			toAttrs["shape"] = "rect"
+		} else {
+			toAttrs["shape"] = "ellipse"
 		}
 
 		// Add first node with all info from query.
