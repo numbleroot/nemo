@@ -3,6 +3,7 @@ package graphing
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 	fi "github.com/numbleroot/nemo/faultinjectors"
@@ -46,6 +47,10 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]graph.Node, []graph.Node, err
 			// Type-assert raw node into well-defined struct.
 			node := preAsync[0].(graph.Node)
 
+			// Provide raw name excluding "_provX" ending.
+			labelParts := strings.Split(node.Properties["label"].(string), "_")
+			node.Properties["raw_label"] = strings.Join(labelParts[:(len(labelParts)-1)], "_")
+
 			// Append to slice of nodes.
 			preAsyncs = append(preAsyncs, node)
 		}
@@ -86,6 +91,10 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]graph.Node, []graph.Node, err
 
 			// Type-assert raw node into well-defined struct.
 			node := diffAsync[0].(graph.Node)
+
+			// Provide raw name excluding "_provX" ending.
+			labelParts := strings.Split(node.Properties["label"].(string), "_")
+			node.Properties["raw_label"] = strings.Join(labelParts[:(len(labelParts)-1)], "_")
 
 			// Append to slice of nodes.
 			diffAsyncs = append(diffAsyncs, node)
@@ -141,9 +150,9 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Corr
 			// At least one message passing event in precondition provenance.
 
 			// TODO: Clean up print-outs of rules (get rid of '_provX' at the end).
-			preAsyncsLabel := fmt.Sprintf("<code>%s</code>", preAsyncs[0].Properties["label"])
+			preAsyncsLabel := fmt.Sprintf("<code>%s</code>", preAsyncs[0].Properties["raw_label"])
 			for j := 1; j < len(preAsyncs); j++ {
-				preAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", preAsyncsLabel, preAsyncs[j].Properties["label"])
+				preAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", preAsyncsLabel, preAsyncs[j].Properties["raw_label"])
 			}
 
 			if len(diffAsyncs) < 1 {
@@ -153,9 +162,9 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Corr
 				corrections = append(corrections, "Yet we saw a fault occuring. Discuss: What are the use cases?")
 			} else {
 
-				diffAsyncsLabel := fmt.Sprintf("<code>%s</code>", diffAsyncs[0].Properties["label"])
+				diffAsyncsLabel := fmt.Sprintf("<code>%s</code>", diffAsyncs[0].Properties["raw_label"])
 				for j := 1; j < len(diffAsyncs); j++ {
-					diffAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", diffAsyncsLabel, diffAsyncs[j].Properties["label"])
+					diffAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", diffAsyncsLabel, diffAsyncs[j].Properties["raw_label"])
 				}
 
 				// At least one message passing event in differential postcondition provenance.
