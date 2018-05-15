@@ -2,6 +2,7 @@ package faultinjectors
 
 import (
 	"fmt"
+	"regexp"
 
 	"encoding/json"
 	"io/ioutil"
@@ -70,6 +71,23 @@ func (m *Molly) LoadOutput() error {
 
 		for j := range m.Runs[i].PreProv.Goals {
 
+			if m.Runs[i].PreProv.Goals[j].Table == "clock" {
+
+				clkTimeWildRegex := regexp.MustCompile(`, ([\d]+), __WILDCARD__\)`)
+				clkTimeWildMatches := clkTimeWildRegex.FindStringSubmatch(m.Runs[i].PreProv.Goals[j].Label)
+
+				clkTimeTwoRegex := regexp.MustCompile(`, ([\d]+), ([\d]+)\)`)
+				clkTimeTwoMatches := clkTimeTwoRegex.FindStringSubmatch(m.Runs[i].PreProv.Goals[j].Label)
+
+				if len(clkTimeWildMatches) > 0 {
+					m.Runs[i].PreProv.Goals[j].Time = clkTimeWildMatches[1]
+				}
+
+				if len(clkTimeTwoMatches) > 0 {
+					m.Runs[i].PreProv.Goals[j].Time = clkTimeTwoMatches[1]
+				}
+			}
+
 			// Prefix goals with "pre_".
 			m.Runs[i].PreProv.Goals[j].ID = fmt.Sprintf("run_%d_pre_%s", m.Runs[i].Iteration, m.Runs[i].PreProv.Goals[j].ID)
 
@@ -106,6 +124,23 @@ func (m *Molly) LoadOutput() error {
 		}
 
 		for j := range m.Runs[i].PostProv.Goals {
+
+			if m.Runs[i].PostProv.Goals[j].Table == "clock" {
+
+				clkTimeWildRegex := regexp.MustCompile(`, ([\d]+), __WILDCARD__\)`)
+				clkTimeWildMatches := clkTimeWildRegex.FindStringSubmatch(m.Runs[i].PostProv.Goals[j].Label)
+
+				clkTimeTwoRegex := regexp.MustCompile(`, ([\d]+), ([\d]+)\)`)
+				clkTimeTwoMatches := clkTimeTwoRegex.FindStringSubmatch(m.Runs[i].PostProv.Goals[j].Label)
+
+				if len(clkTimeWildMatches) > 0 {
+					m.Runs[i].PostProv.Goals[j].Time = clkTimeWildMatches[1]
+				}
+
+				if len(clkTimeTwoMatches) > 0 {
+					m.Runs[i].PostProv.Goals[j].Time = clkTimeTwoMatches[1]
+				}
+			}
 
 			// Prefix goals with "post_".
 			m.Runs[i].PostProv.Goals[j].ID = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Goals[j].ID)
