@@ -30,7 +30,7 @@ func (n *Neo4J) InitGraphDB(boltURI string, runs []*fi.Run) error {
 	fmt.Printf(" done\n")
 
 	// Wait long enough for graph database to be up.
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	driver := neo4j.NewDriver()
 

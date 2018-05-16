@@ -26,7 +26,7 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 	MATCH pathSucc = (root:Goal {run: 0, condition: 'post'})-[*0..]->(goal:Goal {run: 0, condition: 'post'})
 	WHERE NOT root.label IN failGoals AND NOT goal.label IN failGoals
 	RETURN pathSucc;
-	", "/tmp/export-differential-provenance", {format:"plain",cypherFormat:"create"})
+	", "/tmp/export-differential-provenance", {format: "cypher-shell", cypherFormat: "create"})
 	YIELD file, source, format, nodes, relationships, properties, time
 	RETURN file, source, format, nodes, relationships, properties, time;`
 
@@ -71,7 +71,7 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 
 		// Import modified difference graph as new one.
 		_, err = n.Conn1.ExecNeo(`
-			CALL apoc.cypher.runFile("/tmp/export-differential-provenance");
+			CALL apoc.cypher.runFile("/tmp/export-differential-provenance", {statistics: false});
 		`, nil)
 		if err != nil {
 			return nil, nil, nil, err
