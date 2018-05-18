@@ -196,42 +196,49 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Corr
 
 			if len(diffAsyncs) < 1 {
 				// No message passing events in differential postcondition provenance.
-				corrections = append(corrections, "No message passing event required for achieving precondition.")
-				corrections = append(corrections, "No message passing event left required for achieving postcondition.")
-				corrections = append(corrections, "Yet we saw a fault occuring. Discuss: What are the use cases?")
+				// TODO: Discuss this and remove last correction appending.
+				corrections = append(corrections, "<pre>[Precondition]</pre> No message passing events required.")
+				corrections = append(corrections, "<pre>[Postcondition]</pre> No message passing events left.")
+				corrections = append(corrections, "Yet we saw a fault occuring. <span style = \"font-weight: bold;\">Discuss: What are the use cases?</span>")
 			} else {
+
+				diffAsyncsLabel := fmt.Sprintf("<code>%s @ %s</code>", diffAsyncs[0].Rule.Label, diffAsyncs[0].Goal.Time)
+				for j := 1; j < len(diffAsyncs); j++ {
+					diffAsyncsLabel = fmt.Sprintf("%s, <code>%s @ %s</code>", diffAsyncsLabel, diffAsyncs[j].Rule.Label, diffAsyncs[j].Goal.Time)
+				}
+
 				// At least one message passing event in differential postcondition provenance.
-				corrections = append(corrections, "No message passing event required for achieving precondition.")
-				corrections = append(corrections, "There exist message passing events missing that prevent achieving the postcondition.")
-				corrections = append(corrections, "Suggestion: Introduce more fault-tolerance through replication and retries.")
+				corrections = append(corrections, "<pre>[Precondition]</pre> No message passing events required.")
+				corrections = append(corrections, fmt.Sprintf("<pre>[Postcondition]</pre> Latest message passing events still missing: %s", diffAsyncsLabel))
+				corrections = append(corrections, "<span style = \"font-weight: bold;\">Suggestion: Introduce more fault-tolerance through replication and retries.</span>")
 			}
 		} else {
 
 			// At least one message passing event in precondition provenance.
 
-			preAsyncsLabel := fmt.Sprintf("<code>%s</code>", preAsyncs[0].Rule.Label)
+			preAsyncsLabel := fmt.Sprintf("<code>%s @ %s</code>", preAsyncs[0].Rule.Label, preAsyncs[0].Goal.Time)
 			for j := 1; j < len(preAsyncs); j++ {
-				preAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", preAsyncsLabel, preAsyncs[j].Rule.Label)
+				preAsyncsLabel = fmt.Sprintf("%s, <code>%s @ %s</code>", preAsyncsLabel, preAsyncs[j].Rule.Label, preAsyncs[j].Goal.Time)
 			}
 
 			if len(diffAsyncs) < 1 {
 				// No message passing events in differential postcondition provenance.
-				corrections = append(corrections, fmt.Sprintf("%d message passing event(s) required for achieving precondition: %s", len(preAsyncs), preAsyncsLabel))
-				corrections = append(corrections, "No message passing event left required for achieving postcondition.")
-				corrections = append(corrections, "Yet we saw a fault occuring. Discuss: What are the use cases?")
+				// TODO: Discuss this and remove last correction appending.
+				corrections = append(corrections, fmt.Sprintf("<pre>[Precondition]</pre> Latest message passing events required: %s", preAsyncsLabel))
+				corrections = append(corrections, "<pre>[Postcondition]</pre> No message passing events left.")
+				corrections = append(corrections, "Yet we saw a fault occuring. <span style = \"font-weight: bold;\">Discuss: What are the use cases?</span>")
 			} else {
 
-				diffAsyncsLabel := fmt.Sprintf("<code>%s</code>", diffAsyncs[0].Rule.Label)
+				diffAsyncsLabel := fmt.Sprintf("<code>%s @ %s</code>", diffAsyncs[0].Rule.Label, diffAsyncs[0].Goal.Time)
 				for j := 1; j < len(diffAsyncs); j++ {
-					diffAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", diffAsyncsLabel, diffAsyncs[j].Rule.Label)
+					diffAsyncsLabel = fmt.Sprintf("%s, <code>%s @ %s</code>", diffAsyncsLabel, diffAsyncs[j].Rule.Label, diffAsyncs[j].Goal.Time)
 				}
 
 				// At least one message passing event in differential postcondition provenance.
-				corrections = append(corrections, fmt.Sprintf("%d message passing event(s) required for achieving precondition: %s", len(preAsyncs), preAsyncsLabel))
-				corrections = append(corrections, fmt.Sprintf("%d message passing event(s) left required for achieving postcondition: %s", len(diffAsyncs), diffAsyncsLabel))
+				corrections = append(corrections, fmt.Sprintf("<pre>[Precondition]</pre> Latest message passing events required: %s", preAsyncsLabel))
+				corrections = append(corrections, fmt.Sprintf("<pre>[Postcondition]</pre> Latest message passing events still missing: %s", diffAsyncsLabel))
 				corrections = append(corrections, fmt.Sprintf("How can you change the program to semantically depend '%s' on '%s'?", preAsyncsLabel, diffAsyncsLabel))
 				corrections = append(corrections, fmt.Sprintf("How can you make the firing of '%s' dependent on guaranteed prior firing of '%s'?", preAsyncsLabel, diffAsyncsLabel))
-				corrections = append(corrections, "TODO: Graphical aids...")
 
 				// TODO: This is the important area.
 			}

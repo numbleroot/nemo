@@ -6,6 +6,8 @@ img {
     height: auto;
 }
 
+body pre, body code { font-size: 100%; }
+
 .container-fluid {
     margin: 50px auto;
     border-bottom: 1px solid #999;
@@ -42,3 +44,8 @@ img {
 #good-bad-diff-prov img.low { z-index: 0; }
 #good-bad-diff-prov img.medium { z-index: 1; }
 #good-bad-diff-prov img.top { z-index: 2; }
+
+#pre-post-correctness-corrections pre {
+    display: inline;
+    font-weight: bold;
+}
