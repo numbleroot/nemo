@@ -170,24 +170,22 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]*CorrectionsPair, []*Correcti
 }
 
 // GenerateCorrections
-func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Correction, error) {
+func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, error) {
 
 	fmt.Printf("Running generation of suggestions for corrections (pre ~> post)...")
 
 	// Prepare final slices to return.
 	allCorrections := make([][]string, len(failedRuns))
-	allPrePostPairs := make([][]*fi.Correction, len(failedRuns))
 
 	for i := range failedRuns {
 
 		// Create local slices.
 		corrections := make([]string, 0, 6)
-		prePostPairs := make([]*fi.Correction, 0, 8)
 
 		// Retrieve non-trivial events in pre and diffprov post.
 		preAsyncs, diffAsyncs, err := n.findAsyncEvents(failedRuns[i])
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		if len(preAsyncs) < 1 {
@@ -202,9 +200,9 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Corr
 				corrections = append(corrections, "Yet we saw a fault occuring. <span style = \"font-weight: bold;\">Discuss: What are the use cases?</span>")
 			} else {
 
-				diffAsyncsLabel := fmt.Sprintf("<code>%s @ %s</code>", diffAsyncs[0].Rule.Label, diffAsyncs[0].Goal.Time)
+				diffAsyncsLabel := fmt.Sprintf("<code>%s</code> @ <code>%s</code>", diffAsyncs[0].Rule.Label, diffAsyncs[0].Goal.Time)
 				for j := 1; j < len(diffAsyncs); j++ {
-					diffAsyncsLabel = fmt.Sprintf("%s, <code>%s @ %s</code>", diffAsyncsLabel, diffAsyncs[j].Rule.Label, diffAsyncs[j].Goal.Time)
+					diffAsyncsLabel = fmt.Sprintf("%s, <code>%s</code> @ <code>%s</code>", diffAsyncsLabel, diffAsyncs[j].Rule.Label, diffAsyncs[j].Goal.Time)
 				}
 
 				// At least one message passing event in differential postcondition provenance.
@@ -216,9 +214,9 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Corr
 
 			// At least one message passing event in precondition provenance.
 
-			preAsyncsLabel := fmt.Sprintf("<code>%s @ %s</code>", preAsyncs[0].Rule.Label, preAsyncs[0].Goal.Time)
+			preAsyncsLabel := fmt.Sprintf("<code>%s</code> @ <code>%s</code>", preAsyncs[0].Rule.Label, preAsyncs[0].Goal.Time)
 			for j := 1; j < len(preAsyncs); j++ {
-				preAsyncsLabel = fmt.Sprintf("%s, <code>%s @ %s</code>", preAsyncsLabel, preAsyncs[j].Rule.Label, preAsyncs[j].Goal.Time)
+				preAsyncsLabel = fmt.Sprintf("%s, <code>%s</code> @ <code>%s</code>", preAsyncsLabel, preAsyncs[j].Rule.Label, preAsyncs[j].Goal.Time)
 			}
 
 			if len(diffAsyncs) < 1 {
@@ -229,18 +227,23 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Corr
 				corrections = append(corrections, "Yet we saw a fault occuring. <span style = \"font-weight: bold;\">Discuss: What are the use cases?</span>")
 			} else {
 
-				diffAsyncsLabel := fmt.Sprintf("<code>%s @ %s</code>", diffAsyncs[0].Rule.Label, diffAsyncs[0].Goal.Time)
+				diffAsyncsLabel := fmt.Sprintf("<code>%s</code> @ <code>%s</code>", diffAsyncs[0].Rule.Label, diffAsyncs[0].Goal.Time)
 				for j := 1; j < len(diffAsyncs); j++ {
-					diffAsyncsLabel = fmt.Sprintf("%s, <code>%s @ %s</code>", diffAsyncsLabel, diffAsyncs[j].Rule.Label, diffAsyncs[j].Goal.Time)
+					diffAsyncsLabel = fmt.Sprintf("%s, <code>%s</code> @ <code>%s</code>", diffAsyncsLabel, diffAsyncs[j].Rule.Label, diffAsyncs[j].Goal.Time)
 				}
 
 				// At least one message passing event in differential postcondition provenance.
 				corrections = append(corrections, fmt.Sprintf("<pre>[Precondition]</pre> Latest message passing events required: %s", preAsyncsLabel))
 				corrections = append(corrections, fmt.Sprintf("<pre>[Postcondition]</pre> Latest message passing events still missing: %s", diffAsyncsLabel))
-				corrections = append(corrections, fmt.Sprintf("How can you change the program to semantically depend '%s' on '%s'?", preAsyncsLabel, diffAsyncsLabel))
-				corrections = append(corrections, fmt.Sprintf("How can you make the firing of '%s' dependent on guaranteed prior firing of '%s'?", preAsyncsLabel, diffAsyncsLabel))
 
-				// TODO: This is the important area.
+				for j := range preAsyncs {
+
+					// Determine dependency suggestions for identified pre rules.
+					corrections = append(corrections, fmt.Sprintf("<span style = \"font-weight: bold;\">Suggestion:</span> <code>%s</code> @ <code>X</code> := %s", preAsyncs[j].Rule.Label, diffAsyncsLabel))
+
+					// Determine the updated (delayed) time of victory declaration.
+					corrections = append(corrections, fmt.Sprintf("<span style = \"font-weight: bold;\">Timing:</span> X = ..."))
+				}
 			}
 		}
 
@@ -249,10 +252,9 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Corr
 		}
 
 		allCorrections[i] = corrections
-		allPrePostPairs[i] = prePostPairs
 	}
 
 	fmt.Printf(" done\n\n")
 
-	return allCorrections, allPrePostPairs, nil
+	return allCorrections, nil
 }
