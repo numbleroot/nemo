@@ -9,18 +9,31 @@ import (
 	fi "github.com/numbleroot/nemo/faultinjectors"
 )
 
+// Structs.
+
+// CorrectionsPair
+type CorrectionsPair struct {
+	Rule *fi.Rule
+	Goal *fi.Goal
+}
+
 // Functions.
 
 // findAsyncEvents
-func (n *Neo4J) findAsyncEvents(failedRun uint) ([]graph.Node, []graph.Node, error) {
+func (n *Neo4J) findAsyncEvents(failedRun uint) ([]*CorrectionsPair, []*CorrectionsPair, error) {
 
 	diffRunID := 1000 + failedRun
 
 	// Determine if there is non-triviality (i.e., async events)
 	// in the failed run's precondition provenance.
 	stmtPreAsync, err := n.Conn2.PrepareNeo(`
-        MATCH (r:Rule {run: {run}, condition: "pre", type: "async"})
-        RETURN r;
+        MATCH path = (root {run: {run}, condition: "pre"})-[*0..]->(r1:Rule {run: {run}, condition: "pre", type: "async"})-[*0..]->(r2:Rule {run: {run}, condition: "pre", type: "async"})
+		WHERE NOT ()-->(root)
+		WITH r2, collect(r1) AS history
+
+		MATCH (g:Goal)-[*1]->(r2)
+		WITH r2, g, history
+		RETURN r2 AS rule, g AS goal, filter(_ IN history WHERE size(history) = 1) AS history;
     `)
 	if err != nil {
 		return nil, nil, err
@@ -33,7 +46,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]graph.Node, []graph.Node, err
 		return nil, nil, err
 	}
 
-	preAsyncs := make([]graph.Node, 0, 5)
+	preAsyncs := make([]*CorrectionsPair, 0, 5)
 
 	for err == nil {
 
@@ -44,15 +57,37 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]graph.Node, []graph.Node, err
 			return nil, nil, err
 		} else if err == nil {
 
-			// Type-assert raw node into well-defined struct.
-			node := preAsync[0].(graph.Node)
+			history := preAsync[2].([]interface{})
 
-			// Provide raw name excluding "_provX" ending.
-			labelParts := strings.Split(node.Properties["label"].(string), "_")
-			node.Properties["raw_label"] = strings.Join(labelParts[:(len(labelParts)-1)], "_")
+			// We only consider results that are not subsumed
+			// by other results.
+			if len(history) == 1 {
 
-			// Append to slice of nodes.
-			preAsyncs = append(preAsyncs, node)
+				// Type-assert the two nodes into well-defined struct.
+				rule := preAsync[0].(graph.Node)
+				goal := preAsync[1].(graph.Node)
+
+				// Provide raw name excluding "_provX" ending.
+				labelParts := strings.Split(rule.Properties["label"].(string), "_")
+				rule.Properties["label"] = strings.Join(labelParts[:(len(labelParts)-1)], "_")
+
+				// Append to slice of correction pairs.
+				preAsyncs = append(preAsyncs, &CorrectionsPair{
+					Rule: &fi.Rule{
+						ID:    rule.Properties["id"].(string),
+						Label: rule.Properties["label"].(string),
+						Table: rule.Properties["table"].(string),
+						Type:  rule.Properties["type"].(string),
+					},
+					Goal: &fi.Goal{
+						ID:        goal.Properties["id"].(string),
+						Label:     goal.Properties["label"].(string),
+						Table:     goal.Properties["table"].(string),
+						Time:      goal.Properties["time"].(string),
+						CondHolds: goal.Properties["condition_holds"].(bool),
+					},
+				})
+			}
 		}
 	}
 
@@ -64,8 +99,13 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]graph.Node, []graph.Node, err
 	// Determine if there is non-triviality (i.e., async events)
 	// in differential postcondition provenance.
 	stmtDiffAsync, err := n.Conn1.PrepareNeo(`
-        MATCH (r:Rule {run: {run}, condition: "post", type: "async"})
-        RETURN r;
+        MATCH path = (root {run: {run}, condition: "post"})-[*0..]->(r1:Rule {run: {run}, condition: "post", type: "async"})-[*0..]->(r2:Rule {run: {run}, condition: "post", type: "async"})
+		WHERE NOT ()-->(root)
+		WITH r2, collect(r1) AS history
+
+		MATCH (g:Goal)-[*1]->(r2)
+		WITH r2, g, history
+		RETURN r2 AS rule, g AS goal, filter(_ IN history WHERE size(history) = 1) AS history;
     `)
 	if err != nil {
 		return nil, nil, err
@@ -78,7 +118,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]graph.Node, []graph.Node, err
 		return nil, nil, err
 	}
 
-	diffAsyncs := make([]graph.Node, 0, 5)
+	diffAsyncs := make([]*CorrectionsPair, 0, 5)
 
 	for err == nil {
 
@@ -89,15 +129,35 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]graph.Node, []graph.Node, err
 			return nil, nil, err
 		} else if err == nil {
 
-			// Type-assert raw node into well-defined struct.
-			node := diffAsync[0].(graph.Node)
+			history := diffAsync[2].([]interface{})
 
-			// Provide raw name excluding "_provX" ending.
-			labelParts := strings.Split(node.Properties["label"].(string), "_")
-			node.Properties["raw_label"] = strings.Join(labelParts[:(len(labelParts)-1)], "_")
+			if len(history) == 1 {
 
-			// Append to slice of nodes.
-			diffAsyncs = append(diffAsyncs, node)
+				// Type-assert the two nodes into well-defined struct.
+				rule := diffAsync[0].(graph.Node)
+				goal := diffAsync[1].(graph.Node)
+
+				// Provide raw name excluding "_provX" ending.
+				labelParts := strings.Split(rule.Properties["label"].(string), "_")
+				rule.Properties["label"] = strings.Join(labelParts[:(len(labelParts)-1)], "_")
+
+				// Append to slice of correction pairs.
+				diffAsyncs = append(diffAsyncs, &CorrectionsPair{
+					Rule: &fi.Rule{
+						ID:    rule.Properties["id"].(string),
+						Label: rule.Properties["label"].(string),
+						Table: rule.Properties["table"].(string),
+						Type:  rule.Properties["type"].(string),
+					},
+					Goal: &fi.Goal{
+						ID:        goal.Properties["id"].(string),
+						Label:     goal.Properties["label"].(string),
+						Table:     goal.Properties["table"].(string),
+						Time:      goal.Properties["time"].(string),
+						CondHolds: goal.Properties["condition_holds"].(bool),
+					},
+				})
+			}
 		}
 	}
 
@@ -149,10 +209,9 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Corr
 
 			// At least one message passing event in precondition provenance.
 
-			// TODO: Clean up print-outs of rules (get rid of '_provX' at the end).
-			preAsyncsLabel := fmt.Sprintf("<code>%s</code>", preAsyncs[0].Properties["raw_label"])
+			preAsyncsLabel := fmt.Sprintf("<code>%s</code>", preAsyncs[0].Rule.Label)
 			for j := 1; j < len(preAsyncs); j++ {
-				preAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", preAsyncsLabel, preAsyncs[j].Properties["raw_label"])
+				preAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", preAsyncsLabel, preAsyncs[j].Rule.Label)
 			}
 
 			if len(diffAsyncs) < 1 {
@@ -162,9 +221,9 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, [][]*fi.Corr
 				corrections = append(corrections, "Yet we saw a fault occuring. Discuss: What are the use cases?")
 			} else {
 
-				diffAsyncsLabel := fmt.Sprintf("<code>%s</code>", diffAsyncs[0].Properties["raw_label"])
+				diffAsyncsLabel := fmt.Sprintf("<code>%s</code>", diffAsyncs[0].Rule.Label)
 				for j := 1; j < len(diffAsyncs); j++ {
-					diffAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", diffAsyncsLabel, diffAsyncs[j].Properties["raw_label"])
+					diffAsyncsLabel = fmt.Sprintf("%s, <code>%s</code>", diffAsyncsLabel, diffAsyncs[j].Rule.Label)
 				}
 
 				// At least one message passing event in differential postcondition provenance.
