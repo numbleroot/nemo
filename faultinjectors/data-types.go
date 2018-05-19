@@ -46,6 +46,7 @@ type Goal struct {
 	Table     string `json:"table"`
 	Time      string `json:"time"`
 	CondHolds bool   `json:"conditionHolds,omitempty"`
+	Receiver  string `json:"receiver,omitempty"`
 }
 
 // Rule

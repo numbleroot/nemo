@@ -171,6 +171,23 @@ func (m *Molly) LoadOutput() error {
 	return nil
 }
 
+// GetFailureSpec returns the failure specification of this analysis.
+func (m *Molly) GetFailureSpec() *FailureSpec {
+	return m.Runs[0].FailureSpec
+}
+
+// GetMsgsFailedRuns returns the messages sent from all failed runs.
+func (m *Molly) GetMsgsFailedRuns() [][]*Message {
+
+	msgs := make([][]*Message, len(m.FailedRunsIters))
+	for i := range m.FailedRunsIters {
+		msgs[i] = make([]*Message, len(m.Runs[m.FailedRunsIters[i]].Messages))
+		msgs[i] = m.Runs[m.FailedRunsIters[i]].Messages
+	}
+
+	return msgs
+}
+
 // GetOutput returns all parsed runs from Molly.
 func (m *Molly) GetOutput() []*Run {
 	return m.Runs

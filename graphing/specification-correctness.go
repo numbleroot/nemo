@@ -68,8 +68,13 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]*CorrectionsPair, []*Correcti
 				goal := preAsync[1].(graph.Node)
 
 				// Provide raw name excluding "_provX" ending.
-				labelParts := strings.Split(rule.Properties["label"].(string), "_")
-				rule.Properties["label"] = strings.Join(labelParts[:(len(labelParts)-1)], "_")
+				ruleLabelParts := strings.Split(rule.Properties["label"].(string), "_")
+				rule.Properties["label"] = strings.Join(ruleLabelParts[:(len(ruleLabelParts)-1)], "_")
+
+				// Parse parts that make up label of goal.
+				goalLabel := strings.TrimLeft(goal.Properties["label"].(string), goal.Properties["table"].(string))
+				goalLabel = strings.Trim(goalLabel, "()")
+				goalLabelParts := strings.Split(goalLabel, ", ")
 
 				// Append to slice of correction pairs.
 				preAsyncs = append(preAsyncs, &CorrectionsPair{
@@ -85,6 +90,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]*CorrectionsPair, []*Correcti
 						Table:     goal.Properties["table"].(string),
 						Time:      goal.Properties["time"].(string),
 						CondHolds: goal.Properties["condition_holds"].(bool),
+						Receiver:  goalLabelParts[0],
 					},
 				})
 			}
@@ -138,8 +144,13 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]*CorrectionsPair, []*Correcti
 				goal := diffAsync[1].(graph.Node)
 
 				// Provide raw name excluding "_provX" ending.
-				labelParts := strings.Split(rule.Properties["label"].(string), "_")
-				rule.Properties["label"] = strings.Join(labelParts[:(len(labelParts)-1)], "_")
+				ruleLabelParts := strings.Split(rule.Properties["label"].(string), "_")
+				rule.Properties["label"] = strings.Join(ruleLabelParts[:(len(ruleLabelParts)-1)], "_")
+
+				// Parse parts that make up label of goal.
+				goalLabel := strings.TrimLeft(goal.Properties["label"].(string), goal.Properties["table"].(string))
+				goalLabel = strings.Trim(goalLabel, "()")
+				goalLabelParts := strings.Split(goalLabel, ", ")
 
 				// Append to slice of correction pairs.
 				diffAsyncs = append(diffAsyncs, &CorrectionsPair{
@@ -155,6 +166,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]*CorrectionsPair, []*Correcti
 						Table:     goal.Properties["table"].(string),
 						Time:      goal.Properties["time"].(string),
 						CondHolds: goal.Properties["condition_holds"].(bool),
+						Receiver:  goalLabelParts[0],
 					},
 				})
 			}

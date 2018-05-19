@@ -21,6 +21,8 @@ import (
 // FaultInjector
 type FaultInjector interface {
 	LoadOutput() error
+	GetFailureSpec() *fi.FailureSpec
+	GetMsgsFailedRuns() [][]*fi.Message
 	GetOutput() []*fi.Run
 	GetRunsIters() []uint
 	GetFailedRunsIters() []uint
