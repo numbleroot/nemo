@@ -242,10 +242,14 @@
                 d3.select("#pre-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_pre_prov.svg");
                 d3.select("#post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov.svg");
 
-                d3.select("#diff-prov-missing-rule").text(newRun.missingEvents.Rule.label);
-                newRun.missingEvents.Goals.forEach(function(goal) {
-                    d3.select("#diff-prov-missing-goals").append("li").append("code").text(goal.label + " @ " + goal.time);
-                });
+                newRun.missingEvents.forEach(function(m) {
+
+                    // TODO: Add multiple 'rules that need to fire' lines.
+                    // d3.select("#diff-prov-missing-rule").text(newRun.missingEvents.Rule.label);
+                    m.Goals.forEach(function(goal) {
+                        d3.select("#diff-prov-missing-goals").append("li").append("code").text(goal.label + " @ " + goal.time);
+                    });
+                })
 
                 if (typeof newRun.corrections !== 'undefined') {
 

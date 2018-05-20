@@ -15,7 +15,7 @@ import (
 // Functions.
 
 // CreateNaiveDiffProv
-func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPostProv *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, []*fi.Missing, error) {
+func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPostProv *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]*fi.Missing, error) {
 
 	fmt.Printf("Creating differential provenance (good - bad), naive way...")
 
@@ -32,7 +32,7 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 
 	diffDots := make([]*gographviz.Graph, len(failedRuns))
 	failedDots := make([]*gographviz.Graph, len(failedRuns))
-	missingEvents := make([]*fi.Missing, len(failedRuns))
+	missingEvents := make([][]*fi.Missing, len(failedRuns))
 
 	for i := range failedRuns {
 
@@ -111,30 +111,37 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 			return nil, nil, nil, err
 		}
 
-		rule := leavesAll[0][0].(graph.Node)
-		missing := &fi.Missing{
-			Rule: &fi.Rule{
-				ID:    rule.Properties["id"].(string),
-				Label: rule.Properties["label"].(string),
-				Table: rule.Properties["table"].(string),
-				Type:  rule.Properties["type"].(string),
-			},
-			Goals: make([]*fi.Goal, 0, 2),
-		}
+		missing := make([]*fi.Missing, len(leavesAll))
 
-		// Add all leaves.
-		leaves := leavesAll[0][1].([]interface{})
-		for l := range leaves {
+		for j := range leavesAll {
 
-			leaf := leaves[l].(graph.Node)
+			rule := leavesAll[j][0].(graph.Node)
+			m := &fi.Missing{
+				Rule: &fi.Rule{
+					ID:    rule.Properties["id"].(string),
+					Label: rule.Properties["label"].(string),
+					Table: rule.Properties["table"].(string),
+					Type:  rule.Properties["type"].(string),
+				},
+				Goals: make([]*fi.Goal, 0, 2),
+			}
 
-			missing.Goals = append(missing.Goals, &fi.Goal{
-				ID:        leaf.Properties["id"].(string),
-				Label:     leaf.Properties["label"].(string),
-				Table:     leaf.Properties["table"].(string),
-				Time:      leaf.Properties["time"].(string),
-				CondHolds: leaf.Properties["condition_holds"].(bool),
-			})
+			// Add all leaves.
+			leaves := leavesAll[j][1].([]interface{})
+			for l := range leaves {
+
+				leaf := leaves[l].(graph.Node)
+
+				m.Goals = append(m.Goals, &fi.Goal{
+					ID:        leaf.Properties["id"].(string),
+					Label:     leaf.Properties["label"].(string),
+					Table:     leaf.Properties["table"].(string),
+					Time:      leaf.Properties["time"].(string),
+					CondHolds: leaf.Properties["condition_holds"].(bool),
+				})
+			}
+
+			missing[j] = m
 		}
 
 		err = leavesRaw.Close()

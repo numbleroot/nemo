@@ -34,7 +34,7 @@ type GraphDatabase interface {
 	CloseDB() error
 	LoadNaiveProv() error
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error)
-	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, []*fi.Missing, error)
+	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]*fi.Missing, error)
 	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
 	GenerateCorrections([]uint, [][]*fi.Message) ([][]string, error)
 }

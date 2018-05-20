@@ -92,7 +92,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 						return nil, nil, err
 					}
 
-					if (msgs[m].Content == rule.Properties["table"].(string)) &&
+					if (msgs[m].Content == rule.Properties["label"].(string)) &&
 						(msgs[m].RecvNode == goalLabelParts[0]) &&
 						(msgs[m].RecvTime == uint(t)) {
 						sender = msgs[m].SendNode

@@ -126,13 +126,20 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 }
 
 // createDiffDot
-func createDiffDot(diffRunID uint, diffEdges []graph.Path, failedRunID uint, failedEdges []graph.Path, successRunID uint, successPostProv *gographviz.Graph, missing *fi.Missing) (*gographviz.Graph, *gographviz.Graph, error) {
+func createDiffDot(diffRunID uint, diffEdges []graph.Path, failedRunID uint, failedEdges []graph.Path, successRunID uint, successPostProv *gographviz.Graph, missing []*fi.Missing) (*gographviz.Graph, *gographviz.Graph, error) {
 
 	// Create map for lookup of missing events.
 	missingMap := make(map[string]bool)
-	missingMap[missing.Rule.ID] = true
-	for m := range missing.Goals {
-		missingMap[missing.Goals[m].ID] = true
+	for m := range missing {
+
+		missingMap[missing[m].Rule.ID] = true
+		for g := range missing[m].Goals {
+			missingMap[missing[m].Goals[g].ID] = true
+		}
+	}
+
+	for rofl := range missingMap {
+		fmt.Printf("%v => '%#v'\n", rofl, missingMap[rofl])
 	}
 
 	diffDotGraph := gographviz.NewGraph()

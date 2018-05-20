@@ -88,7 +88,7 @@ type Run struct {
 	TimePreHolds  map[string]bool `json:"timePreHolds,omitempty"`
 	PostProv      *ProvData       `json:"postProv,omitempty"`
 	TimePostHolds map[string]bool `json:"timePostHolds,omitempty"`
-	MissingEvents *Missing        `json:"missingEvents,omitempty"`
+	MissingEvents []*Missing      `json:"missingEvents,omitempty"`
 	Corrections   []string        `json:"corrections,omitempty"`
 }
 
