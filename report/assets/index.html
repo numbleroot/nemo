@@ -88,26 +88,6 @@
 
             <ul id = "pre-post-correctness-corrections"></ul>
 
-            <div class = "row">
-
-                <div class = "col-md">
-
-                    <h4>Precondition</h4>
-
-                    <div id = "pre-prov"></div>
-
-                </div>
-
-                <div class = "col-md">
-
-                    <h4>Postcondition</h4>
-
-                    <div id = "post-prov"></div>
-
-                </div>
-
-            </div>
-
         </div>
 
         <div id = "diff-prov" class = "container-fluid">
@@ -236,6 +216,10 @@
 
             var displaySelectedRun = function(newRun) {
 
+                // Hide sections.
+                d3.select("#pre-post-correctness").style("display", "none");
+                d3.select("#diff-prov").style("display", "none");
+
                 // Remove old figures.
                 d3.select("#hazard-analysis img").remove();
                 d3.select("#pre-prov img").remove();
@@ -290,10 +274,6 @@
                     // Make relevant areas visible.
                     d3.select("#diff-prov").style("display", "block");
                     d3.select("#pre-post-correctness").style("display", "block");
-                } else {
-                    // Hide irrelevant areas.
-                    d3.select("#diff-prov").style("display", "none");
-                    d3.select("#pre-post-correctness").style("display", "none");
                 }
             };
 

@@ -3,6 +3,7 @@ package graphing
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
@@ -17,10 +18,16 @@ type CorrectionsPair struct {
 	Goal *fi.Goal
 }
 
+// Dependency
+type Dependency struct {
+	Rule string
+	Time uint
+}
+
 // Functions.
 
 // findAsyncEvents
-func (n *Neo4J) findAsyncEvents(failedRun uint) ([]*CorrectionsPair, []*CorrectionsPair, error) {
+func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*CorrectionsPair, []*CorrectionsPair, error) {
 
 	diffRunID := 1000 + failedRun
 
@@ -63,6 +70,8 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]*CorrectionsPair, []*Correcti
 			// by other results.
 			if len(history) == 1 {
 
+				var sender string
+
 				// Type-assert the two nodes into well-defined struct.
 				rule := preAsync[0].(graph.Node)
 				goal := preAsync[1].(graph.Node)
@@ -75,6 +84,20 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]*CorrectionsPair, []*Correcti
 				goalLabel := strings.TrimLeft(goal.Properties["label"].(string), goal.Properties["table"].(string))
 				goalLabel = strings.Trim(goalLabel, "()")
 				goalLabelParts := strings.Split(goalLabel, ", ")
+
+				for m := range msgs {
+
+					t, err := strconv.ParseUint(goal.Properties["time"].(string), 10, 32)
+					if err != nil {
+						return nil, nil, err
+					}
+
+					if (msgs[m].Content == rule.Properties["table"].(string)) &&
+						(msgs[m].RecvNode == goalLabelParts[0]) &&
+						(msgs[m].RecvTime == uint(t)) {
+						sender = msgs[m].SendNode
+					}
+				}
 
 				// Append to slice of correction pairs.
 				preAsyncs = append(preAsyncs, &CorrectionsPair{
@@ -90,6 +113,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]*CorrectionsPair, []*Correcti
 						Table:     goal.Properties["table"].(string),
 						Time:      goal.Properties["time"].(string),
 						CondHolds: goal.Properties["condition_holds"].(bool),
+						Sender:    sender,
 						Receiver:  goalLabelParts[0],
 					},
 				})
@@ -182,7 +206,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint) ([]*CorrectionsPair, []*Correcti
 }
 
 // GenerateCorrections
-func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, error) {
+func (n *Neo4J) GenerateCorrections(failedRuns []uint, msgs [][]*fi.Message) ([][]string, error) {
 
 	fmt.Printf("Running generation of suggestions for corrections (pre ~> post)...")
 
@@ -195,7 +219,7 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, error) {
 		corrections := make([]string, 0, 6)
 
 		// Retrieve non-trivial events in pre and diffprov post.
-		preAsyncs, diffAsyncs, err := n.findAsyncEvents(failedRuns[i])
+		preAsyncs, diffAsyncs, err := n.findAsyncEvents(failedRuns[i], msgs[i])
 		if err != nil {
 			return nil, err
 		}
@@ -250,11 +274,68 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint) ([][]string, error) {
 
 				for j := range preAsyncs {
 
+					updDeps := make(map[string]Dependency)
+
+					for d := range diffAsyncs {
+
+						// Check if we have to suggest introduction of
+						// intermediate round-trips because the sender of
+						// the pre async event is a different one from the
+						// diff-post one.
+						if preAsyncs[j].Goal.Sender != diffAsyncs[d].Goal.Receiver {
+
+							t, err := strconv.ParseUint(diffAsyncs[d].Goal.Time, 10, 32)
+							if err != nil {
+								return nil, err
+							}
+
+							// Create new internal rule.
+							intAckRule := fmt.Sprintf("int_ack_%s(%s, node, ...)", diffAsyncs[d].Goal.Table, preAsyncs[j].Goal.Sender)
+
+							// If so, add a suggestion for an internal
+							// acknowledgement round to pre async receiver.
+							corrections = append(corrections, fmt.Sprintf("<span style = \"font-weight: bold;\">Suggestion:</span> <code>%s</code> needs to know about <code>%s</code>.<br /> &nbsp; &nbsp; &nbsp; &nbsp; Add internal acknowledgement: <code>%s@async :- %s(node, ...)</code> @ <code>%s</code>;", preAsyncs[j].Goal.Sender, diffAsyncs[d].Goal.Label, intAckRule, diffAsyncs[d].Rule.Label, diffAsyncs[d].Goal.Time))
+
+							// Add intermediate ack to dependencies.
+							updDeps[diffAsyncs[d].Rule.Label] = Dependency{
+								Rule: intAckRule,
+								Time: (uint(t) + 1),
+							}
+						} else {
+
+							t, err := strconv.ParseUint(diffAsyncs[d].Goal.Time, 10, 32)
+							if err != nil {
+								return nil, err
+							}
+
+							// Otherwise, add the original diffprov rule.
+							updDeps[diffAsyncs[d].Rule.Label] = Dependency{
+								Rule: diffAsyncs[d].Rule.Label,
+								Time: uint(t),
+							}
+						}
+					}
+
+					var maxTime uint = 0
+					var updDiffAsyncsLabel string
+					for d := range updDeps {
+
+						if updDeps[d].Time > maxTime {
+							maxTime = updDeps[d].Time
+						}
+
+						if updDiffAsyncsLabel == "" {
+							updDiffAsyncsLabel = fmt.Sprintf("<code>%s</code> @ <code>%d</code>", updDeps[d].Rule, updDeps[d].Time)
+						} else {
+							updDiffAsyncsLabel = fmt.Sprintf("%s, <code>%s</code> @ <code>%d</code>", updDiffAsyncsLabel, updDeps[d].Rule, updDeps[d].Time)
+						}
+					}
+
 					// Determine dependency suggestions for identified pre rules.
-					corrections = append(corrections, fmt.Sprintf("<span style = \"font-weight: bold;\">Suggestion:</span> <code>%s</code> @ <code>X</code> := %s", preAsyncs[j].Rule.Label, diffAsyncsLabel))
+					corrections = append(corrections, fmt.Sprintf("<span style = \"font-weight: bold;\">Suggestion:</span> Augment the conditions under which <code>%s</code> fires:<br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>%s(%s, ...)@async :- </code>%s, &nbsp; <code>EXISTING_DEPENDENCIES</code>;", preAsyncs[j].Rule.Label, preAsyncs[j].Rule.Label, preAsyncs[j].Goal.Receiver, updDiffAsyncsLabel))
 
 					// Determine the updated (delayed) time of victory declaration.
-					corrections = append(corrections, fmt.Sprintf("<span style = \"font-weight: bold;\">Timing:</span> X = ..."))
+					corrections = append(corrections, fmt.Sprintf("<span style = \"font-weight: bold;\">Timing:</span> Earliest time for safely firing <code>%s</code>: <code>%d</code>", preAsyncs[j].Rule.Label, maxTime))
 				}
 			}
 		}

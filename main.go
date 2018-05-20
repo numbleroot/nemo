@@ -36,7 +36,7 @@ type GraphDatabase interface {
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error)
 	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, []*fi.Missing, error)
 	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
-	GenerateCorrections([]uint) ([][]string, error)
+	GenerateCorrections([]uint, [][]*fi.Message) ([][]string, error)
 }
 
 // Reporter
@@ -164,7 +164,7 @@ func main() {
 	// Determine correction suggestions (pre ~> diffprov).
 	if len(failedIters) > 0 {
 
-		corrections, err = debugRun.graphDB.GenerateCorrections(failedIters)
+		corrections, err = debugRun.graphDB.GenerateCorrections(failedIters, debugRun.faultInj.GetMsgsFailedRuns())
 		if err != nil {
 			log.Fatalf("Error while putting together important events pairs from pre ~> post: %v", err)
 		}
