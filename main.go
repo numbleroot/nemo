@@ -25,6 +25,7 @@ type FaultInjector interface {
 	GetMsgsFailedRuns() [][]*fi.Message
 	GetOutput() []*fi.Run
 	GetRunsIters() []uint
+	GetSuccessRunsIters() []uint
 	GetFailedRunsIters() []uint
 }
 
@@ -33,6 +34,7 @@ type GraphDatabase interface {
 	InitGraphDB(string, []*fi.Run) error
 	CloseDB() error
 	LoadNaiveProv() error
+	CreatePrototype([]uint) error
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error)
 	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]*fi.Missing, error)
 	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
@@ -133,11 +135,10 @@ func main() {
 
 	// Extract prototypes of successful and
 	// failed runs (skeletons) and import.
-	// TODO: Implement this.
-	// err = debugRun.graphDB.ExtractPrototypes()
-	// if err != nil {
-	// 	log.Fatalf("Failed to create prototypical successful and failed executions: %v", err)
-	// }
+	err = debugRun.graphDB.CreatePrototype(debugRun.faultInj.GetSuccessRunsIters())
+	if err != nil {
+		log.Fatalf("Failed to create prototype of successful executions: %v", err)
+	}
 
 	// Pull pre- and postcondition provenance
 	// and create DOT diagram strings.

@@ -199,6 +199,11 @@ func (m *Molly) GetRunsIters() []uint {
 	return m.RunsIters
 }
 
+// GetSuccessRunsIters returns indexes of successful runs.
+func (m *Molly) GetSuccessRunsIters() []uint {
+	return m.SuccessRunsIters
+}
+
 // GetFailedRunsIters returns indexes of failed runs.
 func (m *Molly) GetFailedRunsIters() []uint {
 	return m.FailedRunsIters

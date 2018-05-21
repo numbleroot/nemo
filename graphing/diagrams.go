@@ -138,10 +138,6 @@ func createDiffDot(diffRunID uint, diffEdges []graph.Path, failedRunID uint, fai
 		}
 	}
 
-	for rofl := range missingMap {
-		fmt.Printf("%v => '%#v'\n", rofl, missingMap[rofl])
-	}
-
 	diffDotGraph := gographviz.NewGraph()
 	failedDotGraph := gographviz.NewGraph()
 
