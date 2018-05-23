@@ -3,6 +3,8 @@ package graphing
 import (
 	"fmt"
 	"strings"
+
+	"os/exec"
 )
 
 // CreatePrototype
@@ -108,7 +110,35 @@ func (n *Neo4J) CreatePrototype(iters []uint) error {
 		return err
 	}
 
-	// TODO: Print first cypher again, changed OPTIONAL part to be fixed to 'pre'.
+	// Replace run ID part of node ID in saved queries.
+	cmd := exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`id`:\"run_0/`id`:\"run_2000/g", "/tmp/export-prototype-post")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(string(out)) != "" {
+		return fmt.Errorf("Wrong return value from docker-compose exec sed prototype run ID command: %s", out)
+	}
+
+	// Replace run ID in saved queries.
+	cmd = exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`run`:0/`run`:2000/g", "/tmp/export-prototype-post")
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(string(out)) != "" {
+		return fmt.Errorf("Wrong return value from docker-compose exec sed prototype run ID command: %s", out)
+	}
+
+	// Import modified prototype graph as new one.
+	_, err = n.Conn1.ExecNeo(`
+		CALL apoc.cypher.runFile("/tmp/export-prototype-post", {statistics: false});
+	`, nil)
+	if err != nil {
+		return err
+	}
 
 	fmt.Printf(" done\n\n")
 

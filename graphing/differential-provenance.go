@@ -54,7 +54,7 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 		}
 
 		if strings.TrimSpace(string(out)) != "" {
-			return nil, nil, nil, fmt.Errorf("Wrong return value from docker-compose exec sed run ID command: %s", out)
+			return nil, nil, nil, fmt.Errorf("Wrong return value from docker-compose exec sed diffprov run ID command: %s", out)
 		}
 
 		// Replace run ID in saved queries.
@@ -66,7 +66,7 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 		}
 
 		if strings.TrimSpace(string(out)) != "" {
-			return nil, nil, nil, fmt.Errorf("Wrong return value from docker-compose exec sed run ID command: %s", out)
+			return nil, nil, nil, fmt.Errorf("Wrong return value from docker-compose exec sed diffprov run ID command: %s", out)
 		}
 
 		// Import modified difference graph as new one.
