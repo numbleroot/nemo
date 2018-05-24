@@ -81,6 +81,19 @@
 
         </div>
 
+        <div id = "prototype-prov" class = "container-fluid">
+
+            <h3>Prototypical Success Provenance</h3>
+            <span class = "help-block">What have all successful executions in common?</span>
+
+            <div class = "row">
+
+                <div id = "proto-prov"></div>
+
+            </div>
+
+        </div>
+
         <div id = "pre-post-correctness" class = "container-fluid">
 
             <h3>Specification Provenance (Pre <i class = "fas fa-long-arrow-alt-right"></i> Post)</h3>
@@ -224,6 +237,7 @@
                 d3.select("#hazard-analysis img").remove();
                 d3.select("#pre-prov img").remove();
                 d3.select("#post-prov img").remove();
+                d3.select("#proto-prov img").remove();
 
                 d3.select("#diff-prov-check-good").property("checked", false);
                 d3.select("#diff-prov-check-bad").property("checked", false);
@@ -241,6 +255,7 @@
                 d3.select("#hazard-analysis").append("img").attr("src", "figures/run_" + newRun.iteration + "_spacetime.svg");
                 d3.select("#pre-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_pre_prov.svg");
                 d3.select("#post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov.svg");
+                d3.select("#proto-prov").append("img").attr("src", "figures/proto.svg");
 
                 newRun.missingEvents.forEach(function(m) {
 

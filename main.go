@@ -34,7 +34,7 @@ type GraphDatabase interface {
 	InitGraphDB(string, []*fi.Run) error
 	CloseDB() error
 	LoadNaiveProv() error
-	CreatePrototype([]uint) error
+	CreatePrototype([]uint) (*gographviz.Graph, error)
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error)
 	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]*fi.Missing, error)
 	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
@@ -44,6 +44,7 @@ type GraphDatabase interface {
 // Reporter
 type Reporter interface {
 	Prepare(string, string, string) error
+	GenerateFigure(string, *gographviz.Graph) error
 	GenerateFigures([]uint, string, []*gographviz.Graph) error
 }
 
@@ -125,6 +126,12 @@ func main() {
 		log.Fatalf("Failed to import provenance (naive) into graph database: %v", err)
 	}
 
+	// Create hazard analysis DOT figure.
+	hazardDots, err := debugRun.graphDB.CreateHazardAnalysis(faultInjOut)
+	if err != nil {
+		log.Fatalf("Failed to perform hazard analysis of simulation: %v", err)
+	}
+
 	// Clean-up loaded provenance data and
 	// reimport in reduced versions.
 	// TODO: Implement this.
@@ -135,7 +142,7 @@ func main() {
 
 	// Extract prototypes of successful and
 	// failed runs (skeletons) and import.
-	err = debugRun.graphDB.CreatePrototype(debugRun.faultInj.GetSuccessRunsIters())
+	prototypeDot, err := debugRun.graphDB.CreatePrototype(debugRun.faultInj.GetSuccessRunsIters())
 	if err != nil {
 		log.Fatalf("Failed to create prototype of successful executions: %v", err)
 	}
@@ -154,12 +161,6 @@ func main() {
 		log.Fatalf("Could not create the naive differential provenance (bad - good): %v", err)
 	}
 
-	// Create hazard analysis DOT figure.
-	hazardDots, err := debugRun.graphDB.CreateHazardAnalysis(faultInjOut)
-	if err != nil {
-		log.Fatalf("Failed to perform hazard analysis of simulation: %v", err)
-	}
-
 	var corrections [][]string
 
 	// Determine correction suggestions (pre ~> diffprov).
@@ -169,8 +170,6 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error while putting together important events pairs from pre ~> post: %v", err)
 		}
-
-		// fmt.Printf("CORRECTIONS:\n'%#v'\n\n", corrections)
 	}
 
 	// Reporting.
@@ -219,6 +218,12 @@ func main() {
 	err = debugRun.reporter.GenerateFigures(iters, "post_prov", postProvDots)
 	if err != nil {
 		log.Fatalf("Could not generate postcondition provenance figures for report: %v", err)
+	}
+
+	// Generate and write-out prototype provenance figures.
+	err = debugRun.reporter.GenerateFigure("proto", prototypeDot)
+	if err != nil {
+		log.Fatalf("Could not generate intersection prototype provenance figures for report: %v", err)
 	}
 
 	// Generate and write-out naive differential provenance (diff) figures.

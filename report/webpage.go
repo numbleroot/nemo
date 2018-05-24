@@ -49,35 +49,49 @@ func (r *Report) Prepare(wrkDir string, allResDir string, thisResDir string) err
 	return nil
 }
 
-// GenerateFigures
-func (r *Report) GenerateFigures(iters []uint, name string, dotProv []*gographviz.Graph) error {
+// GenerateFigure renders a supplied dot graph.
+func (r *Report) GenerateFigure(fileName string, dotProv *gographviz.Graph) error {
 
-	// We require that each element in dotProv
+	dotFilePath := filepath.Join(r.figuresDir, fmt.Sprintf("%s.dot", fileName))
+	svgFilePath := filepath.Join(r.figuresDir, fmt.Sprintf("%s.svg", fileName))
+
+	// Write-out file containing DOT string.
+	err := ioutil.WriteFile(dotFilePath, []byte(dotProv.String()), 0644)
+	if err != nil {
+		return err
+	}
+
+	// Run SVG generator on DOT file.
+	cmd := exec.Command("dot", "-Tsvg", "-o", svgFilePath, dotFilePath)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(string(out)) != "" {
+		return fmt.Errorf("Wrong return value from SVG generation command: %s", out)
+	}
+
+	return nil
+}
+
+// GenerateFigures
+func (r *Report) GenerateFigures(iters []uint, name string, dotProvs []*gographviz.Graph) error {
+
+	// We require that each element in dotProvs
 	// has a corresponding element in names.
-	if len(iters) != len(dotProv) {
+	if len(iters) != len(dotProvs) {
 		return fmt.Errorf("Unequal number of iteration numbers and DOT graph strings")
 	}
 
-	for i := range dotProv {
+	for i := range iters {
 
-		dotFilePath := filepath.Join(r.figuresDir, fmt.Sprintf("run_%d_%s.dot", iters[i], name))
-		svgFilePath := filepath.Join(r.figuresDir, fmt.Sprintf("run_%d_%s.svg", iters[i], name))
+		fileName := fmt.Sprintf("run_%d_%s", iters[i], name)
 
-		// Write-out file containing DOT string.
-		err := ioutil.WriteFile(dotFilePath, []byte(dotProv[i].String()), 0644)
+		// Generate and write-out figure.
+		err := r.GenerateFigure(fileName, dotProvs[i])
 		if err != nil {
 			return err
-		}
-
-		// Run SVG generator on DOT file.
-		cmd := exec.Command("dot", "-Tsvg", "-o", svgFilePath, dotFilePath)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			return err
-		}
-
-		if strings.TrimSpace(string(out)) != "" {
-			return fmt.Errorf("Wrong return value from SVG generation command: %s", out)
 		}
 	}
 
