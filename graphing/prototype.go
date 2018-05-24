@@ -13,7 +13,7 @@ import (
 // CreatePrototype
 func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
 
-	fmt.Printf("Running extraction of success prototype...")
+	fmt.Printf("Running extraction of success prototype... ")
 
 	stmtCondGoals, err := n.Conn1.PrepareNeo(`
         MATCH (g1:Goal {run: {run}, condition: {condition}})
@@ -114,7 +114,7 @@ func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
 	}
 
 	// Replace run ID part of node ID in saved queries.
-	cmd := exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`id`:\"run_0/`id`:\"run_2000/g", "/tmp/export-prototype-post")
+	cmd := exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`id`:\"run_0/`id`:\"run_3000/g", "/tmp/export-prototype-post")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
 	}
 
 	// Replace run ID in saved queries.
-	cmd = exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`run`:0/`run`:2000/g", "/tmp/export-prototype-post")
+	cmd = exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`run`:0/`run`:3000/g", "/tmp/export-prototype-post")
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
 
 	// Query for imported intersection prototype provenance.
 	stmtProv, err := n.Conn1.PrepareNeo(`
-		MATCH path = ({run: 2000, condition: "post"})-[:DUETO*1]->({run: 2000, condition: "post"})
+		MATCH path = ({run: 3000, condition: "post"})-[:DUETO*1]->({run: 3000, condition: "post"})
 		RETURN path;
 	`)
 	if err != nil {
@@ -189,7 +189,7 @@ func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
 		return nil, err
 	}
 
-	fmt.Printf(" done\n\n")
+	fmt.Printf("done\n\n")
 
 	return prototypeDot, nil
 }

@@ -15,7 +15,7 @@ import (
 // CreateHazardAnalysis
 func (n *Neo4J) CreateHazardAnalysis(faultInjOut string) ([]*gographviz.Graph, error) {
 
-	fmt.Printf("Running hazard window analysis...")
+	fmt.Printf("Running hazard window analysis... ")
 
 	dots := make([]*gographviz.Graph, len(n.Runs))
 
@@ -82,7 +82,7 @@ func (n *Neo4J) CreateHazardAnalysis(faultInjOut string) ([]*gographviz.Graph, e
 		dots[i] = spaceTimeGraph
 	}
 
-	fmt.Printf(" done\n\n")
+	fmt.Printf("done\n\n")
 
 	return dots, nil
 }

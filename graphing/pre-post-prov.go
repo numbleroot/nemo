@@ -220,20 +220,20 @@ func (n *Neo4J) LoadNaiveProv() error {
 	for i := range n.Runs {
 
 		// Load precondition provenance.
-		fmt.Printf("\t[%d] Precondition provenance...", n.Runs[i].Iteration)
+		fmt.Printf("\t[%d] Precondition provenance... ", n.Runs[i].Iteration)
 		err := n.loadProv(n.Runs[i].Iteration, "pre", n.Runs[i].PreProv)
 		if err != nil {
 			return err
 		}
-		fmt.Printf(" done\n")
+		fmt.Printf("done\n")
 
 		// Load postcondition provenance.
-		fmt.Printf("\t[%d] Postcondition provenance...", n.Runs[i].Iteration)
+		fmt.Printf("\t[%d] Postcondition provenance... ", n.Runs[i].Iteration)
 		err = n.loadProv(n.Runs[i].Iteration, "post", n.Runs[i].PostProv)
 		if err != nil {
 			return err
 		}
-		fmt.Printf(" done\n")
+		fmt.Printf("done\n")
 	}
 
 	fmt.Println()
@@ -244,7 +244,7 @@ func (n *Neo4J) LoadNaiveProv() error {
 // PullPrePostProv
 func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error) {
 
-	fmt.Printf("Pulling pre- and postcondition provenance...")
+	fmt.Printf("Pulling pre- and postcondition provenance... ")
 
 	preDots := make([]*gographviz.Graph, len(n.Runs))
 	postDots := make([]*gographviz.Graph, len(n.Runs))
@@ -338,7 +338,7 @@ func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, err
 		return nil, nil, err
 	}
 
-	fmt.Printf(" done\n\n")
+	fmt.Printf("done\n\n")
 
 	return preDots, postDots, nil
 }

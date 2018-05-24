@@ -17,7 +17,7 @@ import (
 func (n *Neo4J) InitGraphDB(boltURI string, runs []*fi.Run) error {
 
 	// Run the docker start command.
-	fmt.Printf("Starting docker containers...")
+	fmt.Printf("Starting docker containers... ")
 	cmd := exec.Command("sudo", "docker-compose", "-f", "docker-compose.yml", "up", "-d")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -27,7 +27,7 @@ func (n *Neo4J) InitGraphDB(boltURI string, runs []*fi.Run) error {
 	if !strings.Contains(string(out), "done") {
 		return fmt.Errorf("Wrong return value from docker-compose up command: %s", out)
 	}
-	fmt.Printf(" done\n")
+	fmt.Printf("done\n")
 
 	// Wait long enough for graph database to be up.
 	time.Sleep(10 * time.Second)
@@ -70,7 +70,7 @@ func (n *Neo4J) CloseDB() error {
 	time.Sleep(2 * time.Second)
 
 	// Shut down docker container.
-	fmt.Printf("Shutting down docker containers...")
+	fmt.Printf("Shutting down docker containers... ")
 	cmd := exec.Command("sudo", "docker-compose", "-f", "docker-compose.yml", "down")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -80,7 +80,7 @@ func (n *Neo4J) CloseDB() error {
 	if !strings.Contains(string(out), "done") {
 		return fmt.Errorf("Wrong return value from docker-compose down command: %s", out)
 	}
-	fmt.Printf(" done\n")
+	fmt.Printf("done\n")
 
 	return nil
 }

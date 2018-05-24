@@ -17,7 +17,7 @@ import (
 // CreateNaiveDiffProv
 func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPostProv *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]*fi.Missing, error) {
 
-	fmt.Printf("Creating differential provenance (good - bad), naive way...")
+	fmt.Printf("Creating differential provenance (good - bad), naive way... ")
 
 	exportQuery := `CALL apoc.export.cypher.query("
 	MATCH (failed:Goal {run: ###RUN###, condition: 'post'})
@@ -36,7 +36,7 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 
 	for i := range failedRuns {
 
-		diffRunID := 1000 + failedRuns[i]
+		diffRunID := 2000 + failedRuns[i]
 
 		// Replace failed run in skeleton query.
 		tmpExportQuery := strings.Replace(exportQuery, "###RUN###", fmt.Sprintf("%d", failedRuns[i]), -1)
@@ -236,7 +236,7 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 		missingEvents[i] = missing
 	}
 
-	fmt.Printf(" done\n\n")
+	fmt.Printf("done\n\n")
 
 	return diffDots, failedDots, missingEvents, nil
 }

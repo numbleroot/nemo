@@ -29,7 +29,7 @@ type Dependency struct {
 // findAsyncEvents
 func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*CorrectionsPair, []*CorrectionsPair, error) {
 
-	diffRunID := 1000 + failedRun
+	diffRunID := 2000 + failedRun
 
 	// Determine if there is non-triviality (i.e., async events)
 	// in the failed run's precondition provenance.
@@ -208,7 +208,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 // GenerateCorrections
 func (n *Neo4J) GenerateCorrections(failedRuns []uint, msgs [][]*fi.Message) ([][]string, error) {
 
-	fmt.Printf("Running generation of suggestions for corrections (pre ~> post)...")
+	fmt.Printf("Running generation of suggestions for corrections (pre ~> post)... ")
 
 	// Prepare final slices to return.
 	allCorrections := make([][]string, len(failedRuns))
@@ -347,7 +347,7 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint, msgs [][]*fi.Message) ([]
 		allCorrections[i] = corrections
 	}
 
-	fmt.Printf(" done\n\n")
+	fmt.Printf("done\n\n")
 
 	return allCorrections, nil
 }

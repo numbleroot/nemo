@@ -34,10 +34,11 @@ type GraphDatabase interface {
 	InitGraphDB(string, []*fi.Run) error
 	CloseDB() error
 	LoadNaiveProv() error
+	PreprocessProv([]uint) error
+	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
 	CreatePrototype([]uint) (*gographviz.Graph, error)
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error)
 	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]*fi.Missing, error)
-	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
 	GenerateCorrections([]uint, [][]*fi.Message) ([][]string, error)
 }
 
@@ -126,19 +127,18 @@ func main() {
 		log.Fatalf("Failed to import provenance (naive) into graph database: %v", err)
 	}
 
+	// Clean-up loaded provenance data and
+	// reimport in reduced versions.
+	err = debugRun.graphDB.PreprocessProv(iters)
+	if err != nil {
+		log.Fatalf("Could not clean-up initial provenance data: %v", err)
+	}
+
 	// Create hazard analysis DOT figure.
 	hazardDots, err := debugRun.graphDB.CreateHazardAnalysis(faultInjOut)
 	if err != nil {
 		log.Fatalf("Failed to perform hazard analysis of simulation: %v", err)
 	}
-
-	// Clean-up loaded provenance data and
-	// reimport in reduced versions.
-	// TODO: Implement this.
-	// err = debugRun.graphDB.PreprocessProv()
-	// if err != nil {
-	// 	log.Fatalf("Could not clean-up initial provenance data: %v", err)
-	// }
 
 	// Extract prototypes of successful and
 	// failed runs (skeletons) and import.
