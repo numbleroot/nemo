@@ -99,12 +99,11 @@ func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
 		return nil, err
 	}
 
-	// TODO: Check data in /root/export-prototype-post.
 	exportQuery := `CALL apoc.export.cypher.query("
 	MATCH path = (r:Goal {run: 0, condition: 'post'})-[*1]->(Rule)-[*1]->(l:Goal {run: 0, condition: 'post'})
 	WHERE r.label IN ###PROTOTYPE### AND l.label IN ###PROTOTYPE###
 	RETURN path;
-	", "/root/export-prototype-post", {format: "cypher-shell", cypherFormat: "create"})
+	", "/tmp/export-prototype-post", {format: "cypher-shell", cypherFormat: "create"})
 	YIELD file, source, format, nodes, relationships, properties, time
 	RETURN file, source, format, nodes, relationships, properties, time;`
 
@@ -115,7 +114,7 @@ func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
 	}
 
 	// Replace run ID part of node ID in saved queries.
-	cmd := exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`id`:\"run_0/`id`:\"run_2000/g", "/root/export-prototype-post")
+	cmd := exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`id`:\"run_0/`id`:\"run_2000/g", "/tmp/export-prototype-post")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
@@ -126,7 +125,7 @@ func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
 	}
 
 	// Replace run ID in saved queries.
-	cmd = exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`run`:0/`run`:2000/g", "/root/export-prototype-post")
+	cmd = exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`run`:0/`run`:2000/g", "/tmp/export-prototype-post")
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		return nil, err
@@ -138,7 +137,7 @@ func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
 
 	// Import modified prototype graph as new one.
 	_, err = n.Conn1.ExecNeo(`
-		CALL apoc.cypher.runFile("/root/export-prototype-post", {statistics: false});
+		CALL apoc.cypher.runFile("/tmp/export-prototype-post", {statistics: false});
 	`, nil)
 	if err != nil {
 		return nil, err
