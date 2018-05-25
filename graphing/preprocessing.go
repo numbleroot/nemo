@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"os/exec"
+
+	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
 
 // cleanCopyProv
@@ -59,6 +61,90 @@ func (n *Neo4J) cleanCopyProv(iter uint, condition string) error {
 	return nil
 }
 
+// collapseNextChains
+func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
+
+	stmtCollapseNext, err := n.Conn2.PrepareNeo(`
+	MATCH path = (r1:Rule {run: {run}, condition: {condition}, type: "next"})-[*1..]->(g:Goal {run: {run}, condition: {condition}})-[*1..]->(r2:Rule {run: {run}, condition: {condition}, type: "next"})
+	WHERE all(node IN nodes(path) WHERE node.type = "next" OR not(exists(node.type)))
+	WITH path, nodes(path) AS nodesRaw, length(path) AS len
+	UNWIND nodesRaw AS node
+	WITH path, collect(DISTINCT node.label) AS nodes, len
+	RETURN path, nodes
+	ORDER BY len DESC;
+	`)
+	if err != nil {
+		return err
+	}
+
+	nextPaths, err := stmtCollapseNext.QueryNeo(map[string]interface{}{
+		"run":       iter,
+		"condition": condition,
+	})
+	if err != nil {
+		return err
+	}
+
+	nextPathsAll, _, err := nextPaths.All()
+	if err != nil {
+		return err
+	}
+
+	err = nextPaths.Close()
+	if err != nil {
+		return err
+	}
+
+	// Create structure to track top-level @next chains per iteration.
+	nextChains := make([][]graph.Node, 0, len(nextPathsAll))
+
+	// Create map to quickly check node containment in path.
+	nextChainsNodes := make(map[string]bool)
+
+	for j := range nextPathsAll {
+
+		newChain := false
+		paths := nextPathsAll[j][0].(graph.Path)
+		nodes := nextPathsAll[j][1].([]interface{})
+
+		for n := range nodes {
+
+			_, found := nextChainsNodes[nodes[n].(string)]
+			if !found {
+				// fmt.Printf("'%v' is not found (new!)\n", nodes[n].(string))
+				newChain = true
+			}
+		}
+
+		if newChain {
+
+			// Add these next chain paths to global structure.
+			nextChains = append(nextChains, paths.Nodes)
+
+			// Also add contained node labels to map so that
+			// we can decide on future paths.
+
+			for n := range nodes {
+				nextChainsNodes[nodes[n].(string)] = true
+			}
+		}
+	}
+
+	// Find predecessor relations to chain.
+
+	// Find all "outwards" relations of chain.
+
+	// Create new nodes representing the intent of the
+	// captured @next chains.
+
+	err = stmtCollapseNext.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // PreprocessProv
 func (n *Neo4J) PreprocessProv(iters []uint) error {
 
@@ -80,9 +166,20 @@ func (n *Neo4J) PreprocessProv(iters []uint) error {
 
 		// Do preprocessing over run: 1000 graphs:
 
-		// Collapse @next chains
-		// MATCH path = (r1:Rule {run: 1000, condition: "post", type: "next"})-[*1]->(g:Goal {run: 1000, condition: "post"})-[*1]->(r2:Rule {run: 1000, condition: "post", type: "next"})
-		// RETURN path;
+		// Collapse @next chains.
+		// Find all paths that represent @next chains, ordered by length.
+		// Build local map of key: nodeLabel, value: successorInPath.
+		// For every path returned, check if contained in map.
+
+		err = n.collapseNextChains(iters[i], "pre")
+		if err != nil {
+			return err
+		}
+
+		err = n.collapseNextChains(iters[i], "post")
+		if err != nil {
+			return err
+		}
 
 		// What more?
 

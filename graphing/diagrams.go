@@ -53,6 +53,8 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 		if edges[i].Nodes[0].Properties["type"] == "async" {
 			fromAttrs["style"] = "\"filled, bold\""
 			fromAttrs["color"] = "\"lawngreen\""
+		} else if edges[i].Nodes[0].Properties["type"] == "next" {
+			fromAttrs["fontcolor"] = "\"gold\""
 		}
 
 		// Style node differently based on achieved condition.
@@ -83,6 +85,8 @@ func createDOT(edges []graph.Path, graphType string) (*gographviz.Graph, error) 
 		if edges[i].Nodes[1].Properties["type"] == "async" {
 			toAttrs["style"] = "\"filled, bold\""
 			toAttrs["color"] = "\"lawngreen\""
+		} else if edges[i].Nodes[1].Properties["type"] == "next" {
+			toAttrs["fontcolor"] = "\"gold\""
 		}
 
 		// Style node differently based on achieved condition.
