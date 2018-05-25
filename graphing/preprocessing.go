@@ -21,14 +21,13 @@ func (n *Neo4J) cleanCopyProv(iter uint, condition string) error {
 
 	tmpExportQuery := strings.Replace(exportQuery, "###RUN###", fmt.Sprintf("%d", iter), -1)
 	tmpExportQuery = strings.Replace(tmpExportQuery, "###CONDITION###", condition, -1)
-	fmt.Printf("NEW EXPORT:\n'%#v'\n\n", tmpExportQuery)
 	_, err := n.Conn1.ExecNeo(tmpExportQuery, nil)
 	if err != nil {
 		return err
 	}
 
 	// Replace run ID part of node ID in saved queries.
-	sedIDLong := fmt.Sprintf("s/`id`:\"run_0/`id`:\"run_%d/g", newID)
+	sedIDLong := fmt.Sprintf("s/`id`:\"run_%d/`id`:\"run_%d/g", iter, newID)
 	cmd := exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", sedIDLong, "/tmp/clean-prov")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -40,7 +39,7 @@ func (n *Neo4J) cleanCopyProv(iter uint, condition string) error {
 	}
 
 	// Replace run ID in saved queries.
-	sedIDShort := fmt.Sprintf("s/`run`:0/`run`:%d/g", newID)
+	sedIDShort := fmt.Sprintf("s/`run`:%d/`run`:%d/g", iter, newID)
 	cmd = exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", sedIDShort, "/tmp/clean-prov")
 	out, err = cmd.CombinedOutput()
 	if err != nil {
