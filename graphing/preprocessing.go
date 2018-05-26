@@ -69,7 +69,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 	WHERE all(node IN nodes(path) WHERE node.type = "next" OR not(exists(node.type)))
 	WITH path, nodes(path) AS nodesRaw, length(path) AS len
 	UNWIND nodesRaw AS node
-	WITH path, collect(DISTINCT node.label) AS nodes, len
+	WITH path, collect(ID(node)) AS nodes, len
 	RETURN path, nodes
 	ORDER BY len DESC;
 	`)
@@ -78,7 +78,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 	}
 
 	nextPaths, err := stmtCollapseNext.QueryNeo(map[string]interface{}{
-		"run":       iter,
+		"run":       (1000 + iter),
 		"condition": condition,
 	})
 	if err != nil {
@@ -99,7 +99,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 	nextChains := make([][]graph.Node, 0, len(nextPathsAll))
 
 	// Create map to quickly check node containment in path.
-	nextChainsNodes := make(map[string]bool)
+	nextChainsNodes := make(map[int64]bool)
 
 	for j := range nextPathsAll {
 
@@ -109,9 +109,8 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 
 		for n := range nodes {
 
-			_, found := nextChainsNodes[nodes[n].(string)]
+			_, found := nextChainsNodes[nodes[n].(int64)]
 			if !found {
-				// fmt.Printf("'%v' is not found (new!)\n", nodes[n].(string))
 				newChain = true
 			}
 		}
@@ -125,7 +124,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 			// we can decide on future paths.
 
 			for n := range nodes {
-				nextChainsNodes[nodes[n].(string)] = true
+				nextChainsNodes[nodes[n].(int64)] = true
 			}
 		}
 	}
@@ -136,8 +135,46 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 
 	// Create new nodes representing the intent of the
 	// captured @next chains.
+	// Set 'collapsed' = true property artificially for later queries.
+	// Connect new node from pred and to all successors (except clock?).
+
+	// Delete extracted next chain.
+	stmtDelChainRaw := `
+	MATCH path = (r:Rule {run: {run}, condition: {condition}, type: "next"})-[*1..]->(g:Goal {run: {run}, condition: {condition}})-[*1..]->(l:Rule {run: {run}, condition: {condition}, type: "next"})
+	WHERE ID(r) IN ###CHAINIDS### AND ID(g) IN ###CHAINIDS### AND ID(l) IN ###CHAINIDS###
+	WITH path, nodes(path) AS nodes, length(path) AS len
+	ORDER BY len DESC
+	UNWIND nodes AS node
+	DETACH DELETE node;
+	`
+
+	// Create string containing all IDs to delete in Cypher format.
+	deleteIDs := make([]string, 0, len(nextChainsNodes))
+	for id := range nextChainsNodes {
+		deleteIDs = append(deleteIDs, fmt.Sprintf("%d", id))
+	}
+	deleteIDsString := strings.Join(deleteIDs, ", ")
+	stmtDelChainRaw = strings.Replace(stmtDelChainRaw, "###CHAINIDS###", fmt.Sprintf("[%s]", deleteIDsString), -1)
+
+	stmtDelChain, err := n.Conn1.PrepareNeo(stmtDelChainRaw)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmtDelChain.ExecNeo(map[string]interface{}{
+		"run":       (1000 + iter),
+		"condition": condition,
+	})
+	if err != nil {
+		return err
+	}
 
 	err = stmtCollapseNext.Close()
+	if err != nil {
+		return err
+	}
+
+	err = stmtDelChain.Close()
 	if err != nil {
 		return err
 	}
