@@ -97,6 +97,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 
 	// Create structure to track top-level @next chains per iteration.
 	nextChains := make([][]graph.Node, 0, len(nextPathsAll))
+	nextChainIDs := make([][]int64, 0, len(nextPathsAll))
 
 	// Create map to quickly check node containment in path.
 	nextChainsNodes := make(map[int64]bool)
@@ -105,11 +106,15 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 
 		newChain := false
 		paths := nextPathsAll[j][0].(graph.Path)
-		nodes := nextPathsAll[j][1].([]interface{})
+
+		nodesRaw := nextPathsAll[j][1].([]interface{})
+		nodes := make([]int64, len(nodesRaw))
 
 		for n := range nodes {
 
-			_, found := nextChainsNodes[nodes[n].(int64)]
+			nodes[n] = nodesRaw[n].(int64)
+
+			_, found := nextChainsNodes[nodes[n]]
 			if !found {
 				newChain = true
 			}
@@ -119,19 +124,124 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 
 			// Add these next chain paths to global structure.
 			nextChains = append(nextChains, paths.Nodes)
+			nextChainIDs = append(nextChainIDs, nodes)
 
 			// Also add contained node labels to map so that
 			// we can decide on future paths.
-
 			for n := range nodes {
-				nextChainsNodes[nodes[n].(int64)] = true
+				nextChainsNodes[nodes[n]] = true
 			}
 		}
 	}
 
+	err = stmtCollapseNext.Close()
+	if err != nil {
+		return err
+	}
+
 	// Find predecessor relations to chain.
+	stmtPred, err := n.Conn1.PrepareNeo(`
+	MATCH (pred:Goal {run: {run}, condition: {condition}})-[*1]->(root:Rule {run: {run}, condition: {condition}})
+	WHERE ID(root) = {rootID}
+	WITH collect(pred) AS preds
+	RETURN preds;
+	`)
+	if err != nil {
+		return err
+	}
+
+	preds := make([][]graph.Node, len(nextChains))
+
+	for i := range nextChains {
+
+		predsRaw, err := stmtPred.QueryNeo(map[string]interface{}{
+			"run":       (1000 + iter),
+			"condition": condition,
+			"rootID":    nextChainIDs[i][0],
+		})
+		if err != nil {
+			return err
+		}
+
+		predsAll, _, err := predsRaw.All()
+		if err != nil {
+			return err
+		}
+
+		err = predsRaw.Close()
+		if err != nil {
+			return err
+		}
+
+		preds[i] = make([]graph.Node, 0, 1)
+
+		for p := range predsAll {
+
+			// Extract all predecessor nodes and append them
+			// individually to the global tracking structure.
+			predsParsed := predsAll[p][0].([]interface{})
+			for r := range predsParsed {
+				preds[i] = append(preds[i], predsParsed[r].(graph.Node))
+			}
+		}
+	}
+
+	err = stmtPred.Close()
+	if err != nil {
+		return err
+	}
 
 	// Find all "outwards" relations of chain.
+	stmtSucc, err := n.Conn2.PrepareNeo(`
+	MATCH (leaf:Rule {run: {run}, condition: {condition}})-[*1]->(succ:Goal {run: {run}, condition: {condition}})
+	WHERE ID(leaf) = {leafID}
+	WITH collect(succ) AS succs
+	RETURN succs;
+	`)
+	if err != nil {
+		return err
+	}
+
+	succs := make([][]graph.Node, len(nextChains))
+
+	for i := range nextChains {
+
+		succsRaw, err := stmtSucc.QueryNeo(map[string]interface{}{
+			"run":       (1000 + iter),
+			"condition": condition,
+			"leafID":    nextChainIDs[i][(len(nextChainIDs[i]) - 1)],
+		})
+		if err != nil {
+			return err
+		}
+
+		succsAll, _, err := succsRaw.All()
+		if err != nil {
+			return err
+		}
+
+		err = succsRaw.Close()
+		if err != nil {
+			return err
+		}
+
+		succs[i] = make([]graph.Node, 0, 1)
+
+		for p := range succsAll {
+
+			// Extract all successor nodes and append them
+			// individually to the global tracking structure.
+			succsParsed := succsAll[p][0].([]interface{})
+			for r := range succsParsed {
+				succs[i] = append(succs[i], succsParsed[r].(graph.Node))
+			}
+		}
+	}
+
+	err = stmtSucc.Close()
+	if err != nil {
+		return err
+	}
 
 	// Create new nodes representing the intent of the
 	// captured @next chains.
@@ -169,11 +279,6 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 		return err
 	}
 
-	err = stmtCollapseNext.Close()
-	if err != nil {
-		return err
-	}
-
 	err = stmtDelChain.Close()
 	if err != nil {
 		return err
@@ -203,16 +308,13 @@ func (n *Neo4J) PreprocessProv(iters []uint) error {
 
 		// Do preprocessing over run: 1000 graphs:
 
-		// Collapse @next chains.
-		// Find all paths that represent @next chains, ordered by length.
-		// Build local map of key: nodeLabel, value: successorInPath.
-		// For every path returned, check if contained in map.
-
+		// Collapse @next chains in precondition provenance.
 		err = n.collapseNextChains(iters[i], "pre")
 		if err != nil {
 			return err
 		}
 
+		// Collapse @next chains in postcondition provenance.
 		err = n.collapseNextChains(iters[i], "post")
 		if err != nil {
 			return err
