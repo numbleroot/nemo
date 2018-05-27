@@ -64,6 +64,8 @@ func (n *Neo4J) cleanCopyProv(iter uint, condition string) error {
 // collapseNextChains
 func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 
+	run := (1000 + iter)
+
 	stmtCollapseNext, err := n.Conn2.PrepareNeo(`
 	MATCH path = (r1:Rule {run: {run}, condition: {condition}, type: "next"})-[*1..]->(g:Goal {run: {run}, condition: {condition}})-[*1..]->(r2:Rule {run: {run}, condition: {condition}, type: "next"})
 	WHERE all(node IN nodes(path) WHERE node.type = "next" OR not(exists(node.type)))
@@ -78,7 +80,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 	}
 
 	nextPaths, err := stmtCollapseNext.QueryNeo(map[string]interface{}{
-		"run":       (1000 + iter),
+		"run":       run,
 		"condition": condition,
 	})
 	if err != nil {
@@ -143,19 +145,19 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 	stmtPred, err := n.Conn1.PrepareNeo(`
 	MATCH (pred:Goal {run: {run}, condition: {condition}})-[*1]->(root:Rule {run: {run}, condition: {condition}})
 	WHERE ID(root) = {rootID}
-	WITH collect(pred) AS preds
+	WITH collect(ID(pred)) AS preds
 	RETURN preds;
 	`)
 	if err != nil {
 		return err
 	}
 
-	preds := make([][]graph.Node, len(nextChains))
+	preds := make([][]int64, len(nextChains))
 
 	for i := range nextChains {
 
 		predsRaw, err := stmtPred.QueryNeo(map[string]interface{}{
-			"run":       (1000 + iter),
+			"run":       run,
 			"condition": condition,
 			"rootID":    nextChainIDs[i][0],
 		})
@@ -173,7 +175,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 			return err
 		}
 
-		preds[i] = make([]graph.Node, 0, 1)
+		preds[i] = make([]int64, 0, 1)
 
 		for p := range predsAll {
 
@@ -181,10 +183,16 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 			// individually to the global tracking structure.
 			predsParsed := predsAll[p][0].([]interface{})
 			for r := range predsParsed {
-				preds[i] = append(preds[i], predsParsed[r].(graph.Node))
+				preds[i] = append(preds[i], predsParsed[r].(int64))
 			}
 		}
 	}
+
+	fmt.Printf("\nPREDS:\n")
+	for rofl := range preds {
+		fmt.Printf("\t'%v'\n", preds[rofl])
+	}
+	fmt.Println()
 
 	err = stmtPred.Close()
 	if err != nil {
@@ -195,19 +203,19 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 	stmtSucc, err := n.Conn2.PrepareNeo(`
 	MATCH (leaf:Rule {run: {run}, condition: {condition}})-[*1]->(succ:Goal {run: {run}, condition: {condition}})
 	WHERE ID(leaf) = {leafID}
-	WITH collect(succ) AS succs
+	WITH collect(ID(succ)) AS succs
 	RETURN succs;
 	`)
 	if err != nil {
 		return err
 	}
 
-	succs := make([][]graph.Node, len(nextChains))
+	succs := make([][]int64, len(nextChains))
 
 	for i := range nextChains {
 
 		succsRaw, err := stmtSucc.QueryNeo(map[string]interface{}{
-			"run":       (1000 + iter),
+			"run":       run,
 			"condition": condition,
 			"leafID":    nextChainIDs[i][(len(nextChainIDs[i]) - 1)],
 		})
@@ -225,7 +233,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 			return err
 		}
 
-		succs[i] = make([]graph.Node, 0, 1)
+		succs[i] = make([]int64, 0, 1)
 
 		for p := range succsAll {
 
@@ -233,20 +241,78 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 			// individually to the global tracking structure.
 			succsParsed := succsAll[p][0].([]interface{})
 			for r := range succsParsed {
-				succs[i] = append(succs[i], succsParsed[r].(graph.Node))
+				succs[i] = append(succs[i], succsParsed[r].(int64))
 			}
 		}
 	}
+
+	fmt.Printf("\nSUCCS:\n")
+	for rofl := range succs {
+		fmt.Printf("\t'%v'\n", succs[rofl])
+	}
+	fmt.Println()
 
 	err = stmtSucc.Close()
 	if err != nil {
 		return err
 	}
 
-	// Create new nodes representing the intent of the
-	// captured @next chains.
-	// Set 'collapsed' = true property artificially for later queries.
-	// Connect new node from pred and to all successors (except clock?).
+	for i := range nextChains {
+
+		label := fmt.Sprintf("%s_collapsed", nextChains[i][0].Properties["table"])
+		id := fmt.Sprintf("run_%d_%s_%s", run, condition, label)
+
+		var predsIDs string
+		for j := range preds[i] {
+
+			if predsIDs == "" {
+				predsIDs = fmt.Sprintf("[%d", preds[i][j])
+			} else {
+				predsIDs = fmt.Sprintf("%s, %d", predsIDs, preds[i][j])
+			}
+		}
+		predsIDs = fmt.Sprintf("%s]", predsIDs)
+
+		var succsIDs string
+		for j := range succs[i] {
+
+			if succsIDs == "" {
+				succsIDs = fmt.Sprintf("[%d", succs[i][j])
+			} else {
+				succsIDs = fmt.Sprintf("%s, %d", succsIDs, succs[i][j])
+			}
+		}
+		succsIDs = fmt.Sprintf("%s]", succsIDs)
+
+		fmt.Printf("predsIDs for %d: '%#v'\n", i, predsIDs)
+		fmt.Printf("succsIDs for %d: '%#v'\n", i, succsIDs)
+
+		// Create new nodes representing the intent of the
+		// captured @next chains.
+		_, err = n.Conn1.ExecNeo(`
+		CREATE (repl:Rule {run: {run}, condition: {condition}, id: {id}, label: {label}, table: {table}, type: 'collapsed'});
+		`, map[string]interface{}{
+			"run":       run,
+			"condition": condition,
+			"id":        id,
+			"label":     label,
+			"table":     nextChains[i][0].Properties["table"],
+		})
+
+		// Connect newly created collapsed next node with
+		// predecessors and successors.
+		_, err = n.Conn2.ExecNeo(`
+		MATCH (pred {run: {run}, condition: {condition}}), (coll {run: {run}, condition: {condition}, id: {id}, type: 'collapsed'}), (succ {run: {run}, condition: {condition}})
+		WHERE ID(pred) IN {predIDs} AND ID(succ) IN {succIDs}
+		CREATE (pred)-[:DUETO]->(coll)-[:DUETO]->(succ);
+		`, map[string]interface{}{
+			"run":       run,
+			"condition": condition,
+			"id":        id,
+			"predIDs":   predsIDs,
+			"succIDs":   succsIDs,
+		})
+	}
 
 	// Delete extracted next chain.
 	stmtDelChainRaw := `
@@ -272,7 +338,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 	}
 
 	_, err = stmtDelChain.ExecNeo(map[string]interface{}{
-		"run":       (1000 + iter),
+		"run":       run,
 		"condition": condition,
 	})
 	if err != nil {

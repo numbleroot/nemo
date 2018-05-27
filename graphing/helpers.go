@@ -67,24 +67,20 @@ func (n *Neo4J) CloseDB() error {
 		return err
 	}
 
-	/*
+	time.Sleep(2 * time.Second)
 
-		time.Sleep(2 * time.Second)
+	// Shut down docker container.
+	fmt.Printf("Shutting down docker containers... ")
+	cmd := exec.Command("sudo", "docker-compose", "-f", "docker-compose.yml", "down")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
 
-		// Shut down docker container.
-		fmt.Printf("Shutting down docker containers... ")
-		cmd := exec.Command("sudo", "docker-compose", "-f", "docker-compose.yml", "down")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			return err
-		}
-
-		if !strings.Contains(string(out), "done") {
-			return fmt.Errorf("Wrong return value from docker-compose down command: %s", out)
-		}
-		fmt.Printf("done\n")
-
-	*/
+	if !strings.Contains(string(out), "done") {
+		return fmt.Errorf("Wrong return value from docker-compose down command: %s", out)
+	}
+	fmt.Printf("done\n")
 
 	return nil
 }
