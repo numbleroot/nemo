@@ -10,11 +10,9 @@ import (
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
 
-// CreatePrototype
-func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
+func (n *Neo4J) extractPrototype(iters []uint, condition string) error {
 
-	fmt.Printf("Running extraction of success prototype... ")
-
+	// Find all labels of next chain goals.
 	stmtCondGoals, err := n.Conn1.PrepareNeo(`
         MATCH (g1:Goal {run: {run}, condition: {condition}})
         OPTIONAL MATCH (g2:Goal {run: {run}, condition: "pre", condition_holds: true})
@@ -23,7 +21,7 @@ func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
         RETURN collect(g1.label) AS goals;
     `)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var protoProv string
@@ -38,20 +36,20 @@ func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
 		// execution eventually achieved its condition.
 		condGoals, err := stmtCondGoals.QueryNeo(map[string]interface{}{
 			"run":       iters[i],
-			"condition": "post",
+			"condition": condition,
 		})
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		condGoalsAll, _, err := condGoals.All()
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		err = condGoals.Close()
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		iterProv[i] = make(map[string]bool)
@@ -96,100 +94,157 @@ func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, error) {
 
 	err = stmtCondGoals.Close()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
+	// Export elements of run 0 that go into the prototype.
 	exportQuery := `CALL apoc.export.cypher.query("
-	MATCH path = (r:Goal {run: 0, condition: 'post'})-[*1]->(Rule)-[*1]->(l:Goal {run: 0, condition: 'post'})
+	MATCH path = (r:Goal {run: 0, condition: '###CONDITION###'})-[*1]->(Rule)-[*1]->(l:Goal {run: 0, condition: '###CONDITION###'})
 	WHERE r.label IN ###PROTOTYPE### AND l.label IN ###PROTOTYPE###
 	RETURN path;
-	", "/tmp/export-prototype-post", {format: "cypher-shell", cypherFormat: "create"})
-	YIELD file, source, format, nodes, relationships, properties, time
-	RETURN file, source, format, nodes, relationships, properties, time;`
+	", "/tmp/export-prototype", {format: "cypher-shell", cypherFormat: "create"})
+	YIELD time
+	RETURN time;`
 
-	tmpExportQuery := strings.Replace(exportQuery, "###PROTOTYPE###", protoProv, -1)
-	_, err = n.Conn1.ExecNeo(tmpExportQuery, nil)
+	exportQuery = strings.Replace(exportQuery, "###PROTOTYPE###", protoProv, -1)
+	exportQuery = strings.Replace(exportQuery, "###CONDITION###", condition, -1)
+	_, err = n.Conn1.ExecNeo(exportQuery, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Replace run ID part of node ID in saved queries.
-	cmd := exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`id`:\"run_0/`id`:\"run_3000/g", "/tmp/export-prototype-post")
+	cmd := exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`id`:\"run_0/`id`:\"run_3000/g", "/tmp/export-prototype")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if strings.TrimSpace(string(out)) != "" {
-		return nil, fmt.Errorf("Wrong return value from docker-compose exec sed prototype run ID command: %s", out)
+		return fmt.Errorf("Wrong return value from docker-compose exec sed prototype run ID command: %s", out)
 	}
 
 	// Replace run ID in saved queries.
-	cmd = exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`run`:0/`run`:3000/g", "/tmp/export-prototype-post")
+	cmd = exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`run`:0/`run`:3000/g", "/tmp/export-prototype")
 	out, err = cmd.CombinedOutput()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if strings.TrimSpace(string(out)) != "" {
-		return nil, fmt.Errorf("Wrong return value from docker-compose exec sed prototype run ID command: %s", out)
+		return fmt.Errorf("Wrong return value from docker-compose exec sed prototype run ID command: %s", out)
 	}
 
 	// Import modified prototype graph as new one.
 	_, err = n.Conn1.ExecNeo(`
-		CALL apoc.cypher.runFile("/tmp/export-prototype-post", {statistics: false});
+		CALL apoc.cypher.runFile("/tmp/export-prototype", {statistics: false});
 	`, nil)
 	if err != nil {
-		return nil, err
+		return err
+	}
+
+	return nil
+}
+
+// CreatePrototype
+func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, *gographviz.Graph, error) {
+
+	fmt.Printf("Running extraction of success prototype... ")
+
+	// Create precondition prototype.
+	err := n.extractPrototype(iters, "pre")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Create postcondition prototype.
+	err = n.extractPrototype(iters, "post")
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// Query for imported intersection prototype provenance.
 	stmtProv, err := n.Conn1.PrepareNeo(`
-		MATCH path = ({run: 3000, condition: "post"})-[:DUETO*1]->({run: 3000, condition: "post"})
+		MATCH path = ({run: 3000, condition: {condition}})-[:DUETO*1]->({run: 3000, condition: {condition}})
 		RETURN path;
 	`)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	edges := make([]graph.Path, 0, 20)
+	preEdges := make([]graph.Path, 0, 20)
+	postEdges := make([]graph.Path, 0, 20)
 
-	edgesRaw, err := stmtProv.QueryNeo(nil)
+	preEdgesRaw, err := stmtProv.QueryNeo(map[string]interface{}{
+		"condition": "pre",
+	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	edgesRows, _, err := edgesRaw.All()
+	preEdgesRows, _, err := preEdgesRaw.All()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	for r := range edgesRows {
+	for r := range preEdgesRows {
 
 		// Type-assert raw edge into well-defined struct.
-		edge := edgesRows[r][0].(graph.Path)
+		edge := preEdgesRows[r][0].(graph.Path)
 
 		// Append to slice of edges.
-		edges = append(edges, edge)
+		preEdges = append(preEdges, edge)
 	}
 
 	// Pass to DOT string generator.
-	prototypeDot, err := createDOT(edges, "prototype")
+	protoPreDot, err := createDOT(preEdges, "prototype")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	err = edgesRaw.Close()
+	err = preEdgesRaw.Close()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	postEdgesRaw, err := stmtProv.QueryNeo(map[string]interface{}{
+		"condition": "post",
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	postEdgesRows, _, err := postEdgesRaw.All()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for r := range postEdgesRows {
+
+		// Type-assert raw edge into well-defined struct.
+		edge := postEdgesRows[r][0].(graph.Path)
+
+		// Append to slice of edges.
+		postEdges = append(postEdges, edge)
+	}
+
+	// Pass to DOT string generator.
+	protoPostDot, err := createDOT(postEdges, "prototype")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = postEdgesRaw.Close()
+	if err != nil {
+		return nil, nil, err
 	}
 
 	err = stmtProv.Close()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	fmt.Printf("done\n\n")
 
-	return prototypeDot, nil
+	return protoPreDot, protoPostDot, nil
 }

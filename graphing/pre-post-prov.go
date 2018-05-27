@@ -242,12 +242,14 @@ func (n *Neo4J) LoadNaiveProv() error {
 }
 
 // PullPrePostProv
-func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, error) {
+func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, error) {
 
 	fmt.Printf("Pulling pre- and postcondition provenance... ")
 
 	preDots := make([]*gographviz.Graph, len(n.Runs))
 	postDots := make([]*gographviz.Graph, len(n.Runs))
+	preCleanDots := make([]*gographviz.Graph, len(n.Runs))
+	postCleanDots := make([]*gographviz.Graph, len(n.Runs))
 
 	// Query for imported correctness condition provenance.
 	stmtProv, err := n.Conn1.PrepareNeo(`
@@ -255,25 +257,27 @@ func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, err
 		RETURN path;
 	`)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	for i := range n.Runs {
 
 		preEdges := make([]graph.Path, 0, 20)
 		postEdges := make([]graph.Path, 0, 20)
+		preCleanEdges := make([]graph.Path, 0, 20)
+		postCleanEdges := make([]graph.Path, 0, 20)
 
 		preEdgesRaw, err := stmtProv.QueryNeo(map[string]interface{}{
 			"run":       n.Runs[i].Iteration,
 			"condition": "pre",
 		})
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		preEdgesRows, _, err := preEdgesRaw.All()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		for p := range preEdgesRows {
@@ -288,12 +292,12 @@ func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, err
 		// Pass to DOT string generator.
 		preDot, err := createDOT(preEdges, "pre")
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		err = preEdgesRaw.Close()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		postEdgesRaw, err := stmtProv.QueryNeo(map[string]interface{}{
@@ -301,12 +305,12 @@ func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, err
 			"condition": "post",
 		})
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		postEdgesRows, _, err := postEdgesRaw.All()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		for p := range postEdgesRows {
@@ -321,24 +325,92 @@ func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, err
 		// Pass to DOT string generator.
 		postDot, err := createDOT(postEdges, "post")
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 
 		err = postEdgesRaw.Close()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, nil, err
+		}
+
+		preCleanEdgesRaw, err := stmtProv.QueryNeo(map[string]interface{}{
+			"run":       (1000 + n.Runs[i].Iteration),
+			"condition": "pre",
+		})
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+
+		preCleanEdgesRows, _, err := preCleanEdgesRaw.All()
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+
+		for p := range preCleanEdgesRows {
+
+			// Type-assert raw edge into well-defined struct.
+			edge := preCleanEdgesRows[p][0].(graph.Path)
+
+			// Append to slice of edges.
+			preCleanEdges = append(preCleanEdges, edge)
+		}
+
+		// Pass to DOT string generator.
+		preCleanDot, err := createDOT(preCleanEdges, "pre")
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+
+		err = preCleanEdgesRaw.Close()
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+
+		postCleanEdgesRaw, err := stmtProv.QueryNeo(map[string]interface{}{
+			"run":       (1000 + n.Runs[i].Iteration),
+			"condition": "post",
+		})
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+
+		postCleanEdgesRows, _, err := postCleanEdgesRaw.All()
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+
+		for p := range postCleanEdgesRows {
+
+			// Type-assert raw edge into well-defined struct.
+			edge := postCleanEdgesRows[p][0].(graph.Path)
+
+			// Append to slice of edges.
+			postCleanEdges = append(postCleanEdges, edge)
+		}
+
+		// Pass to DOT string generator.
+		postCleanDot, err := createDOT(postCleanEdges, "post")
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+
+		err = postCleanEdgesRaw.Close()
+		if err != nil {
+			return nil, nil, nil, nil, err
 		}
 
 		preDots[i] = preDot
 		postDots[i] = postDot
+		preCleanDots[i] = preCleanDot
+		postCleanDots[i] = postCleanDot
 	}
 
 	err = stmtProv.Close()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	fmt.Printf("done\n\n")
 
-	return preDots, postDots, nil
+	return preDots, postDots, preCleanDots, postCleanDots, nil
 }

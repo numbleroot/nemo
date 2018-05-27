@@ -57,7 +57,8 @@
         <div id = "pre-post-prov" class = "container-fluid">
 
             <h3>Pre- and Postcondition Provenance</h3>
-            <span class = "help-block">Which events were required for <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> to be achieved? Message passing events are marked with a <span style = "color: #7cfc00;">bold</span> border.</span>
+            <span class = "help-block">Which events were required for <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> to be achieved?</span>
+            <span class = "help-block">Message passing events are marked with a <span style = "color: #7cfc00;">bold</span> border, next chains written in <span style = "color: #ffd700;">gold</span>.</span>
 
             <div class = "row">
 
@@ -81,6 +82,34 @@
 
         </div>
 
+        <div id = "cleaned-pre-post-prov" class = "container-fluid">
+
+            <h3>Preprocessed Pre- and Postcondition Provenance</h3>
+            <span class = "help-block">Which events were <i>essentially</i> required for <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> to be achieved?</span>
+            <span class = "help-block">Message passing events are marked with a <span style = "color: #7cfc00;">bold</span> border, next chains written in <span style = "color: #ffd700;">gold</span>.</span>
+
+            <div class = "row">
+
+                <div class = "col-md">
+
+                    <h4>Preprocessed Pre</h4>
+
+                    <div id = "cleaned-pre-prov"></div>
+
+                </div>
+
+                <div class = "col-md">
+
+                    <h4>Preprocessed Post</h4>
+
+                    <div id = "cleaned-post-prov"></div>
+
+                </div>
+
+            </div>
+
+        </div>
+
         <div id = "prototype-prov" class = "container-fluid">
 
             <h3>Prototypical Success Provenance</h3>
@@ -88,7 +117,21 @@
 
             <div class = "row">
 
-                <div id = "proto-prov"></div>
+                <div class = "col-md">
+
+                    <h4>Prototype Pre</h4>
+
+                    <div id = "proto-pre-prov"></div>
+
+                </div>
+
+                <div class = "col-md">
+
+                    <h4>Prototype Post</h4>
+
+                    <div id = "proto-post-prov"></div>
+
+                </div>
 
             </div>
 
@@ -237,7 +280,10 @@
                 d3.select("#hazard-analysis img").remove();
                 d3.select("#pre-prov img").remove();
                 d3.select("#post-prov img").remove();
-                d3.select("#proto-prov img").remove();
+                d3.select("#cleaned-pre-prov img").remove();
+                d3.select("#cleaned-post-prov img").remove();
+                d3.select("#proto-pre-prov img").remove();
+                d3.select("#proto-post-prov img").remove();
 
                 d3.select("#diff-prov-check-good").property("checked", false);
                 d3.select("#diff-prov-check-bad").property("checked", false);
@@ -255,7 +301,10 @@
                 d3.select("#hazard-analysis").append("img").attr("src", "figures/run_" + newRun.iteration + "_spacetime.svg");
                 d3.select("#pre-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_pre_prov.svg");
                 d3.select("#post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov.svg");
-                d3.select("#proto-prov").append("img").attr("src", "figures/proto.svg");
+                d3.select("#cleaned-pre-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_pre_prov_clean.svg");
+                d3.select("#cleaned-post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov_clean.svg");
+                d3.select("#proto-pre-prov").append("img").attr("src", "figures/proto_pre.svg");
+                d3.select("#proto-post-prov").append("img").attr("src", "figures/proto_post.svg");
 
                 newRun.missingEvents.forEach(function(m) {
 

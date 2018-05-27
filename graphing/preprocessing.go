@@ -18,12 +18,12 @@ func (n *Neo4J) cleanCopyProv(iter uint, condition string) error {
 	MATCH path = (g1:Goal {run: ###RUN###, condition: '###CONDITION###'})-[*0..]->(g2:Goal {run: ###RUN###, condition: '###CONDITION###'})
 	RETURN path;
 	", "/tmp/clean-prov", {format: "cypher-shell", cypherFormat: "create"})
-	YIELD file, source, format, nodes, relationships, properties, time
-	RETURN file, source, format, nodes, relationships, properties, time;`
+	YIELD time
+	RETURN time;`
 
-	tmpExportQuery := strings.Replace(exportQuery, "###RUN###", fmt.Sprintf("%d", iter), -1)
-	tmpExportQuery = strings.Replace(tmpExportQuery, "###CONDITION###", condition, -1)
-	_, err := n.Conn1.ExecNeo(tmpExportQuery, nil)
+	exportQuery = strings.Replace(exportQuery, "###RUN###", fmt.Sprintf("%d", iter), -1)
+	exportQuery = strings.Replace(exportQuery, "###CONDITION###", condition, -1)
+	_, err := n.Conn1.ExecNeo(exportQuery, nil)
 	if err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 	// Delete extracted next chain.
 	stmtDelChainRaw := `
 	MATCH path = (r:Rule {run: {run}, condition: {condition}, type: "next"})-[*1..]->(g:Goal {run: {run}, condition: {condition}})-[*1..]->(l:Rule {run: {run}, condition: {condition}, type: "next"})
-	WHERE ID(r) IN ###CHAINIDS### AND ID(g) IN ###CHAINIDS### AND ID(l) IN ###CHAINIDS###
+	WHERE ID(r) IN ###CHAIN_IDs### AND ID(g) IN ###CHAIN_IDs### AND ID(l) IN ###CHAIN_IDs###
 	WITH path, nodes(path) AS nodes, length(path) AS len
 	ORDER BY len DESC
 	UNWIND nodes AS node
@@ -154,7 +154,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 		deleteIDs = append(deleteIDs, fmt.Sprintf("%d", id))
 	}
 	deleteIDsString := strings.Join(deleteIDs, ", ")
-	stmtDelChainRaw = strings.Replace(stmtDelChainRaw, "###CHAINIDS###", fmt.Sprintf("[%s]", deleteIDsString), -1)
+	stmtDelChainRaw = strings.Replace(stmtDelChainRaw, "###CHAIN_IDs###", fmt.Sprintf("[%s]", deleteIDsString), -1)
 
 	stmtDelChain, err := n.Conn1.PrepareNeo(stmtDelChainRaw)
 	if err != nil {

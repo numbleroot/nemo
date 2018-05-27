@@ -27,8 +27,8 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 	WHERE NOT root.label IN failGoals AND NOT goal.label IN failGoals
 	RETURN pathSucc;
 	", "/tmp/export-differential-provenance", {format: "cypher-shell", cypherFormat: "create"})
-	YIELD file, source, format, nodes, relationships, properties, time
-	RETURN file, source, format, nodes, relationships, properties, time;`
+	YIELD time
+	RETURN time;`
 
 	diffDots := make([]*gographviz.Graph, len(failedRuns))
 	failedDots := make([]*gographviz.Graph, len(failedRuns))
@@ -39,8 +39,8 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 		diffRunID := 2000 + failedRuns[i]
 
 		// Replace failed run in skeleton query.
-		tmpExportQuery := strings.Replace(exportQuery, "###RUN###", fmt.Sprintf("%d", failedRuns[i]), -1)
-		_, err := n.Conn1.ExecNeo(tmpExportQuery, nil)
+		exportQuery = strings.Replace(exportQuery, "###RUN###", fmt.Sprintf("%d", failedRuns[i]), -1)
+		_, err := n.Conn1.ExecNeo(exportQuery, nil)
 		if err != nil {
 			return nil, nil, nil, err
 		}
