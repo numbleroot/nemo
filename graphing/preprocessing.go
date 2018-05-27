@@ -188,12 +188,6 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 		}
 	}
 
-	fmt.Printf("\nPREDS:\n")
-	for rofl := range preds {
-		fmt.Printf("\t'%v'\n", preds[rofl])
-	}
-	fmt.Println()
-
 	err = stmtPred.Close()
 	if err != nil {
 		return err
@@ -246,12 +240,6 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 		}
 	}
 
-	fmt.Printf("\nSUCCS:\n")
-	for rofl := range succs {
-		fmt.Printf("\t'%v'\n", succs[rofl])
-	}
-	fmt.Println()
-
 	err = stmtSucc.Close()
 	if err != nil {
 		return err
@@ -284,12 +272,9 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 		}
 		succsIDs = fmt.Sprintf("%s]", succsIDs)
 
-		fmt.Printf("predsIDs for %d: '%#v'\n", i, predsIDs)
-		fmt.Printf("succsIDs for %d: '%#v'\n", i, succsIDs)
-
 		// Create new nodes representing the intent of the
 		// captured @next chains.
-		_, err = n.Conn1.ExecNeo(`
+		_, err := n.Conn1.ExecNeo(`
 		CREATE (repl:Rule {run: {run}, condition: {condition}, id: {id}, label: {label}, table: {table}, type: 'collapsed'});
 		`, map[string]interface{}{
 			"run":       run,
@@ -298,26 +283,34 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 			"label":     label,
 			"table":     nextChains[i][0].Properties["table"],
 		})
+		if err != nil {
+			return err
+		}
 
 		// Connect newly created collapsed next node with
 		// predecessors and successors.
-		_, err = n.Conn2.ExecNeo(`
-		MATCH (pred {run: {run}, condition: {condition}}), (coll {run: {run}, condition: {condition}, id: {id}, type: 'collapsed'}), (succ {run: {run}, condition: {condition}})
-		WHERE ID(pred) IN {predIDs} AND ID(succ) IN {succIDs}
-		CREATE (pred)-[:DUETO]->(coll)-[:DUETO]->(succ);
-		`, map[string]interface{}{
-			"run":       run,
-			"condition": condition,
-			"id":        id,
-			"predIDs":   predsIDs,
-			"succIDs":   succsIDs,
-		})
+		addPredsSuccsQuery := `
+		MATCH (pred:Goal {run: ###RUN###, condition: "###CONDITION###"}), (coll:Rule {run: ###RUN###, condition: "###CONDITION###", id: "###ID###", type: "collapsed"}), (succ:Goal {run: ###RUN###, condition: "###CONDITION###"})
+		WHERE ID(pred) IN ###PRED_IDs### AND ID(succ) IN ###SUCC_IDs###
+		MERGE (pred)-[:DUETO]->(coll)
+		MERGE (coll)-[:DUETO]->(succ);
+		`
+		addPredsSuccsQuery = strings.Replace(addPredsSuccsQuery, "###RUN###", fmt.Sprintf("%d", run), -1)
+		addPredsSuccsQuery = strings.Replace(addPredsSuccsQuery, "###CONDITION###", condition, -1)
+		addPredsSuccsQuery = strings.Replace(addPredsSuccsQuery, "###ID###", id, -1)
+		addPredsSuccsQuery = strings.Replace(addPredsSuccsQuery, "###PRED_IDs###", predsIDs, -1)
+		addPredsSuccsQuery = strings.Replace(addPredsSuccsQuery, "###SUCC_IDs###", succsIDs, -1)
+
+		_, err = n.Conn2.ExecNeo(addPredsSuccsQuery, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Delete extracted next chain.
 	stmtDelChainRaw := `
 	MATCH path = (r:Rule {run: {run}, condition: {condition}, type: "next"})-[*1..]->(g:Goal {run: {run}, condition: {condition}})-[*1..]->(l:Rule {run: {run}, condition: {condition}, type: "next"})
-	WHERE ID(r) IN ###CHAIN_IDs### AND ID(g) IN ###CHAIN_IDs### AND ID(l) IN ###CHAIN_IDs###
+	WHERE all(node IN nodes(path) WHERE ID(node) IN ###CHAIN_IDs###)
 	WITH path, nodes(path) AS nodes, length(path) AS len
 	ORDER BY len DESC
 	UNWIND nodes AS node
