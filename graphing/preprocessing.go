@@ -248,7 +248,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 	for i := range nextChains {
 
 		label := fmt.Sprintf("%s_collapsed", nextChains[i][0].Properties["table"])
-		id := fmt.Sprintf("run_%d_%s_%s", run, condition, label)
+		id := fmt.Sprintf("run_%d_%s_%s_%d", run, condition, label, i)
 
 		var predsIDs string
 		for j := range preds[i] {
