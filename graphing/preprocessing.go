@@ -275,7 +275,7 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 		// Create new nodes representing the intent of the
 		// captured @next chains.
 		_, err := n.Conn1.ExecNeo(`
-		CREATE (repl:Rule {run: {run}, condition: {condition}, id: {id}, label: {label}, table: {table}, type: 'collapsed'});
+		CREATE (repl:Rule {run: {run}, condition: {condition}, id: {id}, label: {label}, table: {table}, type: "collapsed"});
 		`, map[string]interface{}{
 			"run":       run,
 			"condition": condition,

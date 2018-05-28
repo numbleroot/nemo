@@ -2,147 +2,140 @@ package graphing
 
 import (
 	"fmt"
-	"strings"
+	// "strings"
 
-	"os/exec"
+	// "os/exec"
 
 	"github.com/awalterschulze/gographviz"
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
 
-func (n *Neo4J) extractPrototype(iters []uint, condition string) error {
+// extractIntersectionPrototype
+func (n *Neo4J) extractIntersectionPrototype(iters []uint, condition string) error {
 
-	// Find all labels of next chain goals.
-	stmtCondGoals, err := n.Conn1.PrepareNeo(`
-        MATCH (g1:Goal {run: {run}, condition: {condition}})
-        OPTIONAL MATCH (g2:Goal {run: {run}, condition: "pre", condition_holds: true})
-        WITH g1, collect(g2) AS existsSuccess
-        WHERE size(existsSuccess) > 0
-        RETURN collect(g1.label) AS goals;
+	// Find all labels of next chain rules.
+	stmtCondRules, err := n.Conn1.PrepareNeo(`
+	MATCH path = (root:Goal {run: {run}, condition: {condition}})-[*1]->(r1:Rule {run: {run}, condition: {condition}})-[*1..]->(r2:Rule {run: {run}, condition: {condition}})
+	OPTIONAL MATCH (g:Goal {run: {run}, condition: "pre", condition_holds: true})
+	WITH nodes(path) AS nodes, root, collect(g) AS existsSuccess, length(path) AS len
+	WHERE size(existsSuccess) > 0 AND not(()-->(root))
+	WITH filter(node IN nodes WHERE exists(node.type)) AS rules, len
+	UNWIND rules AS rule
+	WITH collect(rule) AS rules, len
+	ORDER BY len DESC
+	LIMIT 1
+	RETURN rules;
     `)
 	if err != nil {
 		return err
 	}
 
 	var protoProv string
-
 	achvdCond := 0
-	allProv := make(map[string]int)
-	iterProv := make([]map[string]bool, len(iters))
+	iterProv := make([][]graph.Node, len(iters))
+	numPresent := make([]map[string]int, len(iters))
 
 	for i := range iters {
 
-		// Request all goal labels as long as the
+		numPresent[i] = make(map[string]int)
+
+		// Request all rule labels as long as the
 		// execution eventually achieved its condition.
-		condGoals, err := stmtCondGoals.QueryNeo(map[string]interface{}{
-			"run":       iters[i],
+		condRules, err := stmtCondRules.QueryNeo(map[string]interface{}{
+			"run":       (1000 + iters[i]),
 			"condition": condition,
 		})
 		if err != nil {
 			return err
 		}
 
-		condGoalsAll, _, err := condGoals.All()
+		condAllRules, _, err := condRules.All()
 		if err != nil {
 			return err
 		}
 
-		err = condGoals.Close()
+		err = condRules.Close()
 		if err != nil {
 			return err
 		}
 
-		iterProv[i] = make(map[string]bool)
+		for j := range condAllRules {
 
-		for j := range condGoalsAll {
+			for k := range condAllRules[j] {
 
-			for k := range condGoalsAll[j] {
+				rulesRaw := condAllRules[j][k].([]interface{})
+				rules := make([]graph.Node, len(rulesRaw))
 
-				labels := condGoalsAll[j][k].([]interface{})
+				for l := range rules {
 
-				if len(labels) > 0 {
+					rules[l] = rulesRaw[l].(graph.Node)
+
+					// Count the number of times a label is present
+					// in this particular provenance graph.
+					label := rules[l].Properties["label"].(string)
+					numPresent[i][label] += 1
+				}
+
+				if len(rules) > 0 {
+
+					// Count how many times the precondition was achieved.
 					achvdCond += 1
-				}
 
-				for l := range labels {
-
-					label := labels[l].(string)
-
-					allProv[label] += 1
-					iterProv[i][label] = true
+					// Add rules slice to tracking structure.
+					iterProv[i] = rules
 				}
 			}
 		}
 	}
 
-	for label := range allProv {
+	for i := range iterProv[0] {
 
-		if allProv[label] == achvdCond {
+		foundIn := 1
+		label0 := iterProv[0][i].Properties["label"].(string)
 
-			// Label is present in all label sets.
-			// Add it to final (intersection) prototype.
+		for j := 1; j < len(iterProv); j++ {
+
+			if len(iterProv[j]) > 0 {
+
+				for k := range iterProv[j] {
+
+					labelJ := iterProv[j][k].Properties["label"].(string)
+
+					if (label0 == labelJ) && (numPresent[j][label0] > 0) {
+
+						// Mark label as part of the intersection.
+						foundIn++
+
+						// Reduce number of times this label is present.
+						numPresent[0][label0] -= 1
+						numPresent[j][labelJ] -= 1
+					}
+				}
+			}
+		}
+
+		if foundIn == achvdCond {
+
 			if protoProv == "" {
-				protoProv = fmt.Sprintf("['%s'", label)
+				protoProv = fmt.Sprintf("%s", label0)
 			} else {
-				protoProv = fmt.Sprintf("%s, '%s'", protoProv, label)
+				protoProv = fmt.Sprintf("%s ---> %s", protoProv, label0)
 			}
 		}
 	}
 
-	// Finish list.
-	protoProv = fmt.Sprintf("%s]", protoProv)
+	fmt.Printf("EXTRACTED LABELS OF RULES FOR CONDITION '%s':\n'%v'\n\n", condition, protoProv)
 
-	err = stmtCondGoals.Close()
+	err = stmtCondRules.Close()
 	if err != nil {
 		return err
 	}
 
-	// Export elements of run 0 that go into the prototype.
-	exportQuery := `CALL apoc.export.cypher.query("
-	MATCH path = (r:Goal {run: 0, condition: '###CONDITION###'})-[*1]->(Rule)-[*1]->(l:Goal {run: 0, condition: '###CONDITION###'})
-	WHERE r.label IN ###PROTOTYPE### AND l.label IN ###PROTOTYPE###
-	RETURN path;
-	", "/tmp/export-prototype", {format: "cypher-shell", cypherFormat: "create"})
-	YIELD time
-	RETURN time;`
+	return nil
+}
 
-	exportQuery = strings.Replace(exportQuery, "###PROTOTYPE###", protoProv, -1)
-	exportQuery = strings.Replace(exportQuery, "###CONDITION###", condition, -1)
-	_, err = n.Conn1.ExecNeo(exportQuery, nil)
-	if err != nil {
-		return err
-	}
-
-	// Replace run ID part of node ID in saved queries.
-	cmd := exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`id`:\"run_0/`id`:\"run_3000/g", "/tmp/export-prototype")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
-
-	if strings.TrimSpace(string(out)) != "" {
-		return fmt.Errorf("Wrong return value from docker-compose exec sed prototype run ID command: %s", out)
-	}
-
-	// Replace run ID in saved queries.
-	cmd = exec.Command("sudo", "docker", "exec", "graphdb", "sed", "-i", "s/`run`:0/`run`:3000/g", "/tmp/export-prototype")
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		return err
-	}
-
-	if strings.TrimSpace(string(out)) != "" {
-		return fmt.Errorf("Wrong return value from docker-compose exec sed prototype run ID command: %s", out)
-	}
-
-	// Import modified prototype graph as new one.
-	_, err = n.Conn1.ExecNeo(`
-		CALL apoc.cypher.runFile("/tmp/export-prototype", {statistics: false});
-	`, nil)
-	if err != nil {
-		return err
-	}
-
+// extractUnionPrototype
+func (n *Neo4J) extractUnionPrototype(iters []uint, condition string) error {
 	return nil
 }
 
@@ -152,13 +145,13 @@ func (n *Neo4J) CreatePrototype(iters []uint) (*gographviz.Graph, *gographviz.Gr
 	fmt.Printf("Running extraction of success prototype... ")
 
 	// Create precondition prototype.
-	err := n.extractPrototype(iters, "pre")
+	err := n.extractIntersectionPrototype(iters, "pre")
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// Create postcondition prototype.
-	err = n.extractPrototype(iters, "post")
+	err = n.extractIntersectionPrototype(iters, "post")
 	if err != nil {
 		return nil, nil, err
 	}

@@ -96,26 +96,53 @@
 
         </div>
 
-        <div id = "prototype-prov" class = "container-fluid">
+        <div id = "union-prototype-prov" class = "container-fluid">
 
-            <h3>Prototypical Success Provenance</h3>
-            <span class = "help-block">What have all successful executions in common?</span>
+            <h3>Prototypical Success Provenance (Union)</h3>
+            <span class = "help-block">Which events could possibly take place in a successful execution (union of all successful runs)?</span>
 
             <div class = "row">
 
                 <div class = "col-md">
 
-                    <h4>Prototype Pre</h4>
+                    <h4>Union-Prototype Pre</h4>
 
-                    <div id = "proto-pre-prov"></div>
+                    <div id = "union-proto-pre-prov"></div>
 
                 </div>
 
                 <div class = "col-md">
 
-                    <h4>Prototype Post</h4>
+                    <h4>Union-Prototype Post</h4>
 
-                    <div id = "proto-post-prov"></div>
+                    <div id = "union-proto-post-prov"></div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div id = "intersect-prototype-prov" class = "container-fluid">
+
+            <h3>Prototypical Success Provenance (Intersection)</h3>
+            <span class = "help-block">Which rules take place in all executions (intersection of all successful runs)?</span>
+
+            <div class = "row">
+
+                <div class = "col-md">
+
+                    <h4>Intersect-Prototype Pre</h4>
+
+                    <div id = "inter-proto-pre-prov"></div>
+
+                </div>
+
+                <div class = "col-md">
+
+                    <h4>Intersect-Prototype Post</h4>
+
+                    <div id = "inter-proto-post-prov"></div>
 
                 </div>
 
@@ -268,8 +295,10 @@
                 d3.select("#post-prov img").remove();
                 d3.select("#cleaned-pre-prov img").remove();
                 d3.select("#cleaned-post-prov img").remove();
-                d3.select("#proto-pre-prov img").remove();
-                d3.select("#proto-post-prov img").remove();
+                d3.select("#union-proto-pre-prov img").remove();
+                d3.select("#union-proto-post-prov img").remove();
+                d3.select("#inter-proto-pre-prov img").remove();
+                d3.select("#inter-proto-post-prov img").remove();
 
                 d3.select("#diff-prov-check-good").property("checked", false);
                 d3.select("#diff-prov-check-bad").property("checked", false);
@@ -289,8 +318,10 @@
                 d3.select("#post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov.svg");
                 d3.select("#cleaned-pre-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_pre_prov_clean.svg");
                 d3.select("#cleaned-post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov_clean.svg");
-                d3.select("#proto-pre-prov").append("img").attr("src", "figures/proto_pre.svg");
-                d3.select("#proto-post-prov").append("img").attr("src", "figures/proto_post.svg");
+                d3.select("#union-proto-pre-prov").append("img").attr("src", "figures/union_proto_pre.svg");
+                d3.select("#union-proto-post-prov").append("img").attr("src", "figures/union_proto_post.svg");
+                d3.select("#inter-proto-pre-prov").append("img").attr("src", "figures/inter_proto_pre.svg");
+                d3.select("#inter-proto-post-prov").append("img").attr("src", "figures/inter_proto_post.svg");
 
                 newRun.missingEvents.forEach(function(m) {
 
