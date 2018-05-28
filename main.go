@@ -36,7 +36,7 @@ type GraphDatabase interface {
 	LoadNaiveProv() error
 	PreprocessProv([]uint) error
 	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
-	CreatePrototype([]uint) (*gographviz.Graph, *gographviz.Graph, error)
+	CreatePrototypes([]uint, []uint) ([]string, [][]string, []string, [][]string, error)
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, error)
 	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]*fi.Missing, error)
 	GenerateCorrections([]uint, [][]*fi.Message) ([][]string, error)
@@ -142,9 +142,9 @@ func main() {
 
 	// Extract prototypes of successful and
 	// failed runs (skeletons) and import.
-	protoPreDot, protoPostDot, err := debugRun.graphDB.CreatePrototype(debugRun.faultInj.GetSuccessRunsIters())
+	interProto, interProtoMiss, unionProto, unionProtoMiss, err := debugRun.graphDB.CreatePrototypes(debugRun.faultInj.GetSuccessRunsIters(), debugRun.faultInj.GetFailedRunsIters())
 	if err != nil {
-		log.Fatalf("Failed to create prototype of successful executions: %v", err)
+		log.Fatalf("Failed to create prototypes of successful executions: %v", err)
 	}
 
 	// Pull pre- and postcondition provenance
@@ -176,11 +176,19 @@ func main() {
 
 	// Retrieve current state of run output.
 	// Enrich with missing events.
-	j := 0
+
 	runs := debugRun.faultInj.GetOutput()
+	for i := range iters {
+		runs[iters[i]].InterProto = interProto
+		runs[iters[i]].UnionProto = unionProto
+	}
+
+	j := 0
 	for i := range failedIters {
-		runs[failedIters[i]].MissingEvents = missingEvents[j]
 		runs[failedIters[i]].Corrections = corrections[j]
+		runs[failedIters[i]].MissingEvents = missingEvents[j]
+		runs[failedIters[i]].InterProtoMissing = interProtoMiss[j]
+		runs[failedIters[i]].UnionProtoMissing = unionProtoMiss[j]
 		j++
 	}
 
@@ -230,18 +238,6 @@ func main() {
 	err = debugRun.reporter.GenerateFigures(iters, "post_prov_clean", postCleanProvDots)
 	if err != nil {
 		log.Fatalf("Could not generate cleaned-up postcondition provenance figures for report: %v", err)
-	}
-
-	// Generate and write-out precondition prototype provenance figures.
-	err = debugRun.reporter.GenerateFigure("proto_pre", protoPreDot)
-	if err != nil {
-		log.Fatalf("Could not generate intersection precondition prototype provenance figures for report: %v", err)
-	}
-
-	// Generate and write-out postcondition prototype provenance figures.
-	err = debugRun.reporter.GenerateFigure("proto_post", protoPostDot)
-	if err != nil {
-		log.Fatalf("Could not generate intersection postcondition prototype provenance figures for report: %v", err)
 	}
 
 	// Generate and write-out naive differential provenance (diff) figures.

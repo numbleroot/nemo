@@ -79,17 +79,21 @@ type Missing struct {
 
 // Run
 type Run struct {
-	Iteration     uint            `json:"iteration"`
-	Status        string          `json:"status"`
-	FailureSpec   *FailureSpec    `json:"failureSpec"`
-	Model         *Model          `json:"model"`
-	Messages      []*Message      `json:"messages"`
-	PreProv       *ProvData       `json:"preProv,omitempty"`
-	TimePreHolds  map[string]bool `json:"timePreHolds,omitempty"`
-	PostProv      *ProvData       `json:"postProv,omitempty"`
-	TimePostHolds map[string]bool `json:"timePostHolds,omitempty"`
-	MissingEvents []*Missing      `json:"missingEvents,omitempty"`
-	Corrections   []string        `json:"corrections,omitempty"`
+	Iteration         uint            `json:"iteration"`
+	Status            string          `json:"status"`
+	FailureSpec       *FailureSpec    `json:"failureSpec"`
+	Model             *Model          `json:"model"`
+	Messages          []*Message      `json:"messages"`
+	PreProv           *ProvData       `json:"preProv,omitempty"`
+	TimePreHolds      map[string]bool `json:"timePreHolds,omitempty"`
+	PostProv          *ProvData       `json:"postProv,omitempty"`
+	TimePostHolds     map[string]bool `json:"timePostHolds,omitempty"`
+	Corrections       []string        `json:"corrections,omitempty"`
+	InterProto        []string        `json:"interProto,omitempty"`
+	InterProtoMissing []string        `json:"interProtoMissing,omitempty"`
+	UnionProto        []string        `json:"unionProto,omitempty"`
+	UnionProtoMissing []string        `json:"unionProtoMissing,omitempty"`
+	MissingEvents     []*Missing      `json:"missingEvents,omitempty"`
 }
 
 // Molly

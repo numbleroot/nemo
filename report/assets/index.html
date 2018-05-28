@@ -71,7 +71,7 @@
         <div id = "cleaned-pre-post-prov" class = "container-fluid">
 
             <h3>Preprocessed Pre- and Postcondition Provenance</h3>
-            <span class = "help-block">Which events were <i>essentially</i> required for <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> to be achieved?</span>
+            <span class = "help-block">Which events were <span style = "font-style: italic;">essentially</span> required for <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> to be achieved?</span>
             <span class = "help-block">Message passing events are marked with a <span style = "color: #7cfc00;">bold</span> border, next chains written in <span style = "color: #ffd700;">gold</span>.</span>
 
             <div class = "row">
@@ -96,66 +96,60 @@
 
         </div>
 
-        <div id = "union-prototype-prov" class = "container-fluid">
-
-            <h3>Prototypical Success Provenance (Union)</h3>
-            <span class = "help-block">Which events could possibly take place in a successful execution (union of all successful runs)?</span>
-
-            <div class = "row">
-
-                <div class = "col-md">
-
-                    <h4>Union-Prototype Pre</h4>
-
-                    <div id = "union-proto-pre-prov"></div>
-
-                </div>
-
-                <div class = "col-md">
-
-                    <h4>Union-Prototype Post</h4>
-
-                    <div id = "union-proto-post-prov"></div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <div id = "intersect-prototype-prov" class = "container-fluid">
-
-            <h3>Prototypical Success Provenance (Intersection)</h3>
-            <span class = "help-block">Which rules take place in all executions (intersection of all successful runs)?</span>
-
-            <div class = "row">
-
-                <div class = "col-md">
-
-                    <h4>Intersect-Prototype Pre</h4>
-
-                    <div id = "inter-proto-pre-prov"></div>
-
-                </div>
-
-                <div class = "col-md">
-
-                    <h4>Intersect-Prototype Post</h4>
-
-                    <div id = "inter-proto-post-prov"></div>
-
-                </div>
-
-            </div>
-
-        </div>
-
         <div id = "pre-post-correctness" class = "container-fluid">
 
             <h3>Specification Provenance (Pre <i class = "fas fa-long-arrow-alt-right"></i> Post)</h3>
             <span class = "help-block">Can we suggest modifications to precondition events that make the precondition stricter?</span>
 
             <ul id = "pre-post-correctness-corrections"></ul>
+
+        </div>
+
+        <div id = "inter-proto-prov" class = "container-fluid">
+
+            <h3>Prototypical Success Postcondition Provenance (Intersection)</h3>
+
+            <div class = "row">
+
+                <div class = "col-md">
+
+                    <span class = "help-block">Which rules take place in all executions (intersection of all successful runs)?</span>
+                    <ul id = "inter-proto-prov-rules"></ul>
+
+                </div>
+
+                <div class = "col-md">
+
+                    <span class = "help-block">If failed: which rules from the intersection-prototype did we <span style = "font-weight: bold;">not</span> see?</span>
+                    <ul id = "inter-proto-prov-missing"></ul>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div id = "union-proto-prov" class = "container-fluid">
+
+            <h3>Prototypical Success Postcondition Provenance (Union)</h3>
+
+            <div class = "row">
+
+                <div class = "col-md">
+
+                    <span class = "help-block">Which events could possibly take place in a successful execution (union of all successful runs)?</span>
+                    <ul id = "union-proto-prov-rules"></ul>
+
+                </div>
+
+                <div class = "col-md">
+
+                    <span class = "help-block">If failed: which rules from the union-prototype did we <span style = "font-weight: bold;">not</span> see?</span>
+                    <ul id = "union-proto-prov-missing"></ul>
+
+                </div>
+
+            </div>
 
         </div>
 
@@ -295,10 +289,6 @@
                 d3.select("#post-prov img").remove();
                 d3.select("#cleaned-pre-prov img").remove();
                 d3.select("#cleaned-post-prov img").remove();
-                d3.select("#union-proto-pre-prov img").remove();
-                d3.select("#union-proto-post-prov img").remove();
-                d3.select("#inter-proto-pre-prov img").remove();
-                d3.select("#inter-proto-post-prov img").remove();
 
                 d3.select("#diff-prov-check-good").property("checked", false);
                 d3.select("#diff-prov-check-bad").property("checked", false);
@@ -311,6 +301,10 @@
                 d3.select("#diff-prov-missing-rule").html("");
                 d3.select("#diff-prov-missing-goals").html("");
                 d3.select("#pre-post-correctness-corrections").html("");
+                d3.select("#inter-proto-prov-rules").html("");
+                d3.select("#inter-proto-prov-missing").html("");
+                d3.select("#union-proto-prov-rules").html("");
+                d3.select("#union-proto-prov-missing").html("");
 
                 // Add currently selected figures.
                 d3.select("#hazard-analysis").append("img").attr("src", "figures/run_" + newRun.iteration + "_spacetime.svg");
@@ -318,10 +312,37 @@
                 d3.select("#post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov.svg");
                 d3.select("#cleaned-pre-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_pre_prov_clean.svg");
                 d3.select("#cleaned-post-prov").append("img").attr("src", "figures/run_" + newRun.iteration + "_post_prov_clean.svg");
-                d3.select("#union-proto-pre-prov").append("img").attr("src", "figures/union_proto_pre.svg");
-                d3.select("#union-proto-post-prov").append("img").attr("src", "figures/union_proto_post.svg");
-                d3.select("#inter-proto-pre-prov").append("img").attr("src", "figures/inter_proto_pre.svg");
-                d3.select("#inter-proto-post-prov").append("img").attr("src", "figures/inter_proto_post.svg");
+
+                if (typeof newRun.corrections !== 'undefined') {
+
+                    newRun.corrections.forEach(function(corr) {
+                        d3.select("#pre-post-correctness-corrections").append("li").html(corr);
+                    });
+                }
+
+                // Add intersection-prototype rules.
+                newRun.interProto.forEach(function(rule) {
+                    d3.select("#inter-proto-prov-rules").append("li").html(rule);
+                });
+
+                if (typeof newRun.interProtoMissing !== 'undefined') {
+
+                    newRun.interProtoMissing.forEach(function(miss) {
+                        d3.select("#inter-proto-prov-missing").append("li").html(miss);
+                    });
+                }
+
+                // Add union-prototype rules.
+                newRun.unionProto.forEach(function(rule) {
+                    d3.select("#union-proto-prov-rules").append("li").html(rule);
+                });
+
+                if (typeof newRun.unionProtoMissing !== 'undefined') {
+
+                    newRun.unionProtoMissing.forEach(function(miss) {
+                        d3.select("#union-proto-prov-missing").append("li").html(miss);
+                    });
+                }
 
                 newRun.missingEvents.forEach(function(m) {
 
@@ -331,13 +352,6 @@
                         d3.select("#diff-prov-missing-goals").append("li").append("code").text(goal.label + " @ " + goal.time);
                     });
                 })
-
-                if (typeof newRun.corrections !== 'undefined') {
-
-                    newRun.corrections.forEach(function(corr) {
-                        d3.select("#pre-post-correctness-corrections").append("li").html(corr);
-                    });
-                }
 
                 d3.select("#good-bad-diff-prov").append("img")
                     .attr("src", "figures/run_0_post_prov.svg")
