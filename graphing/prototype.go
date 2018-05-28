@@ -29,13 +29,9 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 	achvdCond := 0
 	interProto := make([]string, 0, 10)
 	unionProto := make([]string, 0, 10)
-
 	iterProv := make([][]string, len(iters))
-	numPresent := make([]map[string]int, len(iters))
 
 	for i := range iters {
-
-		numPresent[i] = make(map[string]int)
 
 		// Request all rule labels as long as the
 		// execution eventually achieved its condition.
@@ -65,12 +61,7 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 				rules := make([]string, len(rulesRaw))
 
 				for l := range rules {
-
 					rules[l] = rulesRaw[l].(string)
-
-					// Count the number of times a label is present
-					// in this particular provenance graph.
-					numPresent[i][rules[l]] += 1
 				}
 
 				if len(rules) > 0 {
@@ -98,14 +89,9 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 
 				for k := range iterProv[j] {
 
-					if (iterProv[0][i] == iterProv[j][k]) && (numPresent[j][iterProv[0][i]] > 0) {
-
-						// Mark label as part of the intersection.
+					// If found, mark label as part of the intersection.
+					if iterProv[0][i] == iterProv[j][k] {
 						foundIn++
-
-						// Reduce number of times this label is present.
-						numPresent[0][iterProv[0][i]] -= 1
-						numPresent[j][iterProv[j][k]] -= 1
 					}
 				}
 			}
@@ -118,7 +104,7 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 
 		// If in intersection, append label to final prototype.
 		if foundIn == achvdCond {
-			interProto = append(interProto, fmt.Sprintf("<code>%s</code>", iterProv[0][i]))
+			interProto = append(interProto, iterProv[0][i])
 		}
 	}
 
@@ -134,7 +120,7 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 				if !alreadySeen[iterProv[j][i]] {
 
 					// New label, add to union.
-					unionProto = append(unionProto, fmt.Sprintf("<code>%s</code>", iterProv[j][i]))
+					unionProto = append(unionProto, iterProv[j][i])
 
 					// Update map to seen for this label.
 					alreadySeen[iterProv[j][i]] = true
@@ -149,6 +135,74 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 	}
 
 	return interProto, unionProto, nil
+}
+
+// missingFrom
+func (n *Neo4J) missingFrom(proto []string, failedIter uint, condition string) ([]string, error) {
+
+	stmtMissRules, err := n.Conn1.PrepareNeo(`
+	MATCH (r:Rule {run: {run}, condition: {condition}})
+	WITH collect(DISTINCT r.label) AS rules
+	RETURN rules;
+    `)
+	if err != nil {
+		return nil, err
+	}
+
+	missRules, err := stmtMissRules.QueryNeo(map[string]interface{}{
+		"run":       (1000 + failedIter),
+		"condition": condition,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	missAllRules, _, err := missRules.All()
+	if err != nil {
+		return nil, err
+	}
+
+	err = missRules.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	failedRules := make(map[string]bool)
+
+	for j := range missAllRules {
+
+		for k := range missAllRules[j] {
+
+			rulesRaw := missAllRules[j][k].([]interface{})
+			rules := make([]string, len(rulesRaw))
+
+			for l := range rules {
+
+				rules[l] = rulesRaw[l].(string)
+
+				// Add rule to tracking structure.
+				failedRules[rules[l]] = true
+			}
+		}
+	}
+
+	// Figure out the difference in rules
+	// between prototype and failed run's rules.
+	missing := make([]string, 0, 3)
+
+	for p := range proto {
+
+		if !failedRules[proto[p]] {
+			missing = append(missing, fmt.Sprintf("<code>%s</code>", proto[p]))
+		}
+	}
+
+	err = stmtMissRules.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return missing, nil
 }
 
 // CreatePrototypes
@@ -171,12 +225,29 @@ func (n *Neo4J) CreatePrototypes(iters []uint, failedIters []uint) ([]string, []
 
 	for i := range failedIters {
 
-		interProtoMiss[i] = make([]string, 0, 5)
+		// Collect all nodes missing in the failed execution's postcondition
+		// provenance that are part of the intersection-prototype.
+		interMiss, err := n.missingFrom(interProto, failedIters[i], "post")
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		interProtoMiss[i] = interMiss
+
+		// Collect all nodes missing in the failed execution's postcondition
+		// provenance that are part of the union-prototype.
+		unionMiss, err := n.missingFrom(unionProto, failedIters[i], "post")
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		unionProtoMiss[i] = unionMiss
 	}
 
-	for i := range failedIters {
+	for i := range interProto {
+		interProto[i] = fmt.Sprintf("<code>%s</code>", interProto[i])
+	}
 
-		unionProtoMiss[i] = make([]string, 0, 5)
+	for i := range unionProto {
+		unionProto[i] = fmt.Sprintf("<code>%s</code>", unionProto[i])
 	}
 
 	fmt.Printf("done\n\n")
