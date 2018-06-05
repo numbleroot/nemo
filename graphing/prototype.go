@@ -2,6 +2,7 @@ package graphing
 
 import (
 	"fmt"
+	"regexp"
 )
 
 // extractProtos extracts the intersection-prototype
@@ -53,6 +54,8 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 			return nil, nil, err
 		}
 
+		provSuffixRegex := regexp.MustCompile(`(.*)_prov[\d]+`)
+
 		for j := range condAllRules {
 
 			for k := range condAllRules[j] {
@@ -61,7 +64,17 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 				rules := make([]string, len(rulesRaw))
 
 				for l := range rules {
+
 					rules[l] = rulesRaw[l].(string)
+
+					// Attempt to find '_provX' suffix.
+					provSuffixMatches := provSuffixRegex.FindStringSubmatch(rules[l])
+
+					// In case we found a suffix to be present,
+					// replace rules item with first part.
+					if len(provSuffixMatches) > 0 {
+						rules[l] = provSuffixMatches[1]
+					}
 				}
 
 				if len(rules) > 0 {
@@ -103,7 +116,7 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 		}
 
 		// If in intersection, append label to final prototype.
-		if foundIn == achvdCond {
+		if (foundIn == achvdCond) && (iterProv[0][i] != condition) {
 			interProto = append(interProto, iterProv[0][i])
 		}
 	}
@@ -117,7 +130,7 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 
 			if i < len(iterProv[j]) {
 
-				if !alreadySeen[iterProv[j][i]] {
+				if !alreadySeen[iterProv[j][i]] && (iterProv[j][i] != condition) {
 
 					// New label, add to union.
 					unionProto = append(unionProto, iterProv[j][i])
