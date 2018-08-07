@@ -27,166 +27,282 @@
 
         </div>
 
-        <div id = "hazard" class = "container-fluid">
+        <div id = "rec" class = "container-fluid">
 
-            <h3>Hazard Analysis</h3>
-            <span class = "help-block">When do <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> hold? If a window exists between pre- and postcondition, this allows for faults.</span>
-
-            <div class = "row">
-
-                <div id = "hazard-analysis"></div>
-
-            </div>
-
-        </div>
-
-        <div id = "pre-post-prov" class = "container-fluid">
-
-            <h3>Pre- and Postcondition Provenance</h3>
-            <span class = "help-block">Which events were required for <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> to be achieved?</span>
-            <span class = "help-block">Message passing events are marked with a <span style = "color: #7cfc00;">bold</span> border, next chains written in <span style = "color: #ffd700;">gold</span>.</span>
+            <h3>Recommendation</h3>
+            <span class = "help-block">Nemo analyzed your protocol and this is its recommendation to change first.</span>
 
             <div class = "row">
 
-                <div class = "col-md">
-
-                    <h4>Pre</h4>
-
-                    <div id = "pre-prov"></div>
-
-                </div>
-
-                <div class = "col-md">
-
-                    <h4>Post</h4>
-
-                    <div id = "post-prov"></div>
-
-                </div>
+                <div id = "recommendation"></div>
 
             </div>
 
         </div>
 
-        <div id = "cleaned-pre-post-prov" class = "container-fluid">
+        <div class = "accordion">
 
-            <h3>Preprocessed Pre- and Postcondition Provenance</h3>
-            <span class = "help-block">Which events were <span style = "font-style: italic;">essentially</span> required for <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> to be achieved?</span>
-            <span class = "help-block">Message passing events are marked with a <span style = "color: #7cfc00;">bold</span> border, next chains written in <span style = "color: #ffd700;">gold</span>.</span>
+            <div class = "card">
 
-            <div class = "row">
+                <div id = "hazard" class = "card-header">
 
-                <div class = "col-md">
-
-                    <h4>Preprocessed Pre</h4>
-
-                    <div id = "cleaned-pre-prov"></div>
+                    <h5 class = "mb-0">
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseHazard" aria-expanded = "false" aria-controls = "collapseHazard">Hazard Analysis</button>
+                    </h5>
 
                 </div>
 
-                <div class = "col-md">
+                <div id = "collapseHazard" class = "collapse" aria-labelledby = "hazard">
 
-                    <h4>Preprocessed Post</h4>
+                    <div class = "card-body">
 
-                    <div id = "cleaned-post-prov"></div>
+                        <span class = "help-block">When do <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> hold? If a window exists between pre- and postcondition, this allows for faults.</span>
 
-                </div>
+                        <div id = "hazard-analysis"></div>
 
-            </div>
-
-        </div>
-
-        <div id = "pre-post-correctness" class = "container-fluid">
-
-            <h3>Specification Provenance (Pre <i class = "fas fa-long-arrow-alt-right"></i> Post)</h3>
-            <span class = "help-block">Can we suggest modifications to precondition events that make the precondition stricter?</span>
-
-            <ul id = "pre-post-correctness-corrections"></ul>
-
-        </div>
-
-        <div id = "inter-proto-prov" class = "container-fluid">
-
-            <h3>Prototypical Success Postcondition Provenance (Intersection)</h3>
-
-            <div class = "row">
-
-                <div class = "col-md">
-
-                    <span class = "help-block">Which rules take place in all executions (intersection of all successful runs)?</span>
-                    <ul id = "inter-proto-prov-rules"></ul>
-
-                </div>
-
-                <div class = "col-md">
-
-                    <span class = "help-block">If failed: which rules are <span style = "font-weight: bold;">certainly</span> missing from this execution?</span>
-                    <ul id = "inter-proto-prov-missing"></ul>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <div id = "union-proto-prov" class = "container-fluid">
-
-            <h3>Prototypical Success Postcondition Provenance (Union)</h3>
-
-            <div class = "row">
-
-                <div class = "col-md">
-
-                    <span class = "help-block">Which rules could possibly take place in a successful execution (union of all successful runs)?</span>
-                    <ul id = "union-proto-prov-rules"></ul>
-
-                </div>
-
-                <div class = "col-md">
-
-                    <span class = "help-block">If failed: which rules&mdash;if added&mdash;could turn this execution into a succesful one?</span>
-                    <ul id = "union-proto-prov-missing"></ul>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        <div id = "diff-prov" class = "container-fluid">
-
-            <h3>Good - Bad = Differential</h3>
-            <span class = "help-block">Which events are missing from the bad execution compared to the good one? Frontier elements are bordered <span style = "color: #c71585;">dashed red</span>.</span>
-
-            <div>
-
-                <h6>Rule &nbsp;<code id = "diff-prov-missing-rule"></code>&nbsp; needs to fire to achieve success, but the following events are not taking place:</h6>
-                <ul id = "diff-prov-missing-goals"></ul>
-
-            </div>
-
-            <div class = "row anchor">
-
-                <div class = "diff-prov-checker">
-
-                    <div>
-                        <input type = "checkbox" id = "diff-prov-check-good" name = "diff-prov-check-good" value = "good" />
-                        <label for = "diff-prov-check-good">Good</label>
-                    </div>
-
-                    <div>
-                        <input type = "checkbox" id = "diff-prov-check-bad" name = "diff-prov-check-bad" value = "bad" />
-                        <label for = "diff-prov-check-bad">Bad</label>
-                    </div>
-
-                    <div>
-                        <input type = "checkbox" id = "diff-prov-check-diff" name = "diff-prov-check-diff" value = "diff" checked = "checked" />
-                        <label for = "diff-prov-check-diff">Difference</label>
                     </div>
 
                 </div>
 
-                <div id = "good-bad-diff-prov"></div>
+            </div>
+
+            <div class = "card">
+
+                <div id = "pre-post-prov" class = "card-header">
+
+                    <h5 class = "mb-0">
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapsePrePost" aria-expanded = "false" aria-controls = "collapsePrePost">Pre- and Postcondition Provenance</button>
+                    </h5>
+
+                </div>
+
+                <div id = "collapsePrePost" class = "collapse" aria-labelledby = "pre-post-prov">
+
+                    <div class = "card-body">
+
+                        <span class = "help-block">Which events were required for <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> to be achieved?</span>
+                        <span class = "help-block">Message passing events are marked with a <span style = "color: #7cfc00;">bold</span> border, next chains written in <span style = "color: #ffd700;">gold</span>.</span>
+
+                        <div class = "row">
+
+                            <div class = "col-md">
+
+                                <h4>Pre</h4>
+
+                                <div id = "pre-prov"></div>
+
+                            </div>
+
+                            <div class = "col-md">
+
+                                <h4>Post</h4>
+
+                                <div id = "post-prov"></div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class = "card">
+
+                <div id = "cleaned-pre-post-prov" class = "card-header">
+
+                    <h5 class = "mb-0">
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseProcessedPrePost" aria-expanded = "false" aria-controls = "collapseProcessedPrePost">Preprocessed Pre- and Postcondition Provenance</button>
+                    </h5>
+
+                </div>
+
+                <div id = "collapseProcessedPrePost" class = "collapse" aria-labelledby = "cleaned-pre-post-prov">
+
+                    <div class = "card-body">
+
+                        <span class = "help-block">Which events were <span style = "font-style: italic;">essentially</span> required for <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> to be achieved?</span>
+                        <span class = "help-block">Message passing events are marked with a <span style = "color: #7cfc00;">bold</span> border, next chains written in <span style = "color: #ffd700;">gold</span>.</span>
+
+                        <div class = "row">
+
+                            <div class = "col-md">
+
+                                <h4>Preprocessed Pre</h4>
+
+                                <div id = "cleaned-pre-prov"></div>
+
+                            </div>
+
+                            <div class = "col-md">
+
+                                <h4>Preprocessed Post</h4>
+
+                                <div id = "cleaned-post-prov"></div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class = "card">
+
+                <div id = "pre-post-correctness" class = "card-header">
+
+                    <h5 class = "mb-0">
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseCorrections" aria-expanded = "false" aria-controls = "collapseCorrections">Specification Provenance (Pre <i class = "fas fa-long-arrow-alt-right"></i> Post)</button>
+                    </h5>
+
+                </div>
+
+                <div id = "collapseCorrections" class = "collapse" aria-labelledby = "pre-post-correctness">
+
+                    <div class = "card-body">
+
+                        <span class = "help-block">Can we suggest modifications to precondition events that make the precondition stricter?</span>
+
+                        <ul id = "pre-post-correctness-corrections"></ul>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class = "card">
+
+                <div id = "inter-proto-prov" class = "card-header">
+
+                    <h5 class = "mb-0">
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseInterProto" aria-expanded = "false" aria-controls = "collapseInterProto">Prototypical Success Postcondition Provenance (Intersection)</button>
+                    </h5>
+
+                </div>
+
+                <div id = "collapseInterProto" class = "collapse" aria-labelledby = "inter-proto-prov">
+
+                    <div class = "card-body">
+
+                        <div class = "row">
+
+                            <div class = "col-md">
+
+                                <span class = "help-block">Which rules take place in all executions (intersection of all successful runs)?</span>
+                                <ul id = "inter-proto-prov-rules"></ul>
+
+                            </div>
+
+                            <div class = "col-md">
+
+                                <span class = "help-block">If failed: which rules are <span style = "font-weight: bold;">certainly</span> missing from this execution?</span>
+                                <ul id = "inter-proto-prov-missing"></ul>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class = "card">
+
+                <div id = "union-proto-prov" class = "card-header">
+
+                    <h5 class = "mb-0">
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseUnionProto" aria-expanded = "false" aria-controls = "collapseUnionProto">Prototypical Success Postcondition Provenance (Union)</button>
+                    </h5>
+
+                </div>
+
+                <div id = "collapseUnionProto" class = "collapse" aria-labelledby = "union-proto-prov">
+
+                    <div class = "card-body">
+
+                        <div class = "row">
+
+                            <div class = "col-md">
+
+                                <span class = "help-block">Which rules could possibly take place in a successful execution (union of all successful runs)?</span>
+                                <ul id = "union-proto-prov-rules"></ul>
+
+                            </div>
+
+                            <div class = "col-md">
+
+                                <span class = "help-block">If failed: which rules&mdash;if added&mdash;could turn this execution into a succesful one?</span>
+                                <ul id = "union-proto-prov-missing"></ul>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class = "card">
+
+                <div id = "diff-prov" class = "card-header">
+
+                    <h5 class = "mb-0">
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseDiffProv" aria-expanded = "false" aria-controls = "collapseDiffProv">Good - Bad = Differential</button>
+                    </h5>
+
+                </div>
+
+                <div id = "collapseDiffProv" class = "collapse" aria-labelledby = "diff-prov">
+
+                    <div class = "card-body">
+
+                        <span class = "help-block">Which events are missing from the bad execution compared to the good one? Frontier elements are bordered <span style = "color: #c71585;">dashed red</span>.</span>
+
+                        <div id = "diff-prov-missing-list">
+
+                            <h6>Rule &nbsp;<code id = "diff-prov-missing-rule"></code>&nbsp; needs to fire to achieve success, but the following events are not taking place:</h6>
+                            <ul id = "diff-prov-missing-goals"></ul>
+
+                        </div>
+
+                        <div class = "row anchor">
+
+                            <div class = "diff-prov-checker">
+
+                                <div>
+                                    <input type = "checkbox" id = "diff-prov-check-good" name = "diff-prov-check-good" value = "good" />
+                                    <label for = "diff-prov-check-good">Good</label>
+                                </div>
+
+                                <div>
+                                    <input type = "checkbox" id = "diff-prov-check-bad" name = "diff-prov-check-bad" value = "bad" />
+                                    <label for = "diff-prov-check-bad">Bad</label>
+                                </div>
+
+                                <div>
+                                    <input type = "checkbox" id = "diff-prov-check-diff" name = "diff-prov-check-diff" value = "diff" checked = "checked" />
+                                    <label for = "diff-prov-check-diff">Difference</label>
+                                </div>
+
+                            </div>
+
+                            <div id = "good-bad-diff-prov"></div>
+
+                        </div>
+
+                    </div>
+
+                </div>
 
             </div>
 
@@ -298,8 +414,7 @@
                 d3.select("#good-bad-diff-prov-bad").remove();
                 d3.select("#good-bad-diff-prov-diff").remove();
 
-                d3.select("#diff-prov-missing-rule").html("");
-                d3.select("#diff-prov-missing-goals").html("");
+                d3.select("#diff-prov-missing-list").html("");
                 d3.select("#pre-post-correctness-corrections").html("");
                 d3.select("#inter-proto-prov-rules").html("");
                 d3.select("#inter-proto-prov-missing").html("");
@@ -344,14 +459,19 @@
                     });
                 }
 
-                newRun.missingEvents.forEach(function(m) {
+                if(newRun.status != "success") {
 
-                    // TODO: Add multiple 'rules that need to fire' lines.
-                    // d3.select("#diff-prov-missing-rule").text(newRun.missingEvents.Rule.label);
-                    m.Goals.forEach(function(goal) {
-                        d3.select("#diff-prov-missing-goals").append("li").append("code").text(goal.label + " @ " + goal.time);
-                    });
-                })
+                    newRun.missingEvents.forEach(function(m) {
+
+                        d3.select("#diff-prov-missing-list").append("h6").html("Rule " + m.Rule.Label + " needs to fire to achieve success, but the following events are not taking place:");
+
+                        d3.select("#diff-prov-missing-list").append("ul");
+
+                        m.Goals.forEach(function(goal) {
+                            d3.select("#diff-prov-missing-list ul").append("li").append("code").text(goal.label + " @ " + goal.time);
+                        });
+                    })
+                }
 
                 d3.select("#good-bad-diff-prov").append("img")
                     .attr("src", "figures/run_0_post_prov.svg")

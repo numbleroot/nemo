@@ -7,13 +7,10 @@ img {
 }
 
 body pre, body code { font-size: 100%; }
-
-.container-fluid {
-    margin: 50px auto;
-    border-bottom: 1px solid #999;
-}
-
+.accordion { margin-bottom: 50px; }
+.container-fluid { margin: 50px auto; }
 .row { margin: 0 0 50px; }
+.card-header h5 button { font-size: 1.35rem; }
 
 .help-block {
     display: block;
