@@ -30,11 +30,11 @@
         <div id = "rec" class = "container-fluid">
 
             <h3>Recommendation</h3>
-            <span class = "help-block">Nemo analyzed your protocol and this is its recommendation to change first.</span>
+            <span class = "help-block">Nemo analyzed your protocol and recommends to make the following changes.</span>
 
             <div class = "row">
 
-                <div id = "recommendation"></div>
+                <ul id = "recommendation"></ul>
 
             </div>
 
@@ -377,6 +377,13 @@
                         });
             };
 
+            var makeRecommendation = function(recs) {
+
+                recs.forEach(function(rec) {
+                    d3.select("#recommendation").append("li").html(rec);
+                });
+            }
+
             var formatCrash = function(crash) {
                 return crash.node + "@" + crash.time;
             };
@@ -463,8 +470,7 @@
 
                     newRun.missingEvents.forEach(function(m) {
 
-                        d3.select("#diff-prov-missing-list").append("h6").html("Rule " + m.Rule.Label + " needs to fire to achieve success, but the following events are not taking place:");
-
+                        d3.select("#diff-prov-missing-list").append("h6").html("Rule <code>" + m.Rule.label + "</code> needs to fire to achieve success, but the following events are not taking place:");
                         d3.select("#diff-prov-missing-list").append("ul");
 
                         m.Goals.forEach(function(goal) {
@@ -511,7 +517,11 @@
                     runs.push(run);
                 });
 
+                // Update the runs table.
                 refreshRunsTable();
+
+                // Make a top-level recommendation.
+                makeRecommendation(runs[0].recommendation);
             });
 
         });

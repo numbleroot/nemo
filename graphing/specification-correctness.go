@@ -206,7 +206,12 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 }
 
 // GenerateCorrections
-func (n *Neo4J) GenerateCorrections(failedRuns []uint, msgs [][]*fi.Message) ([][]string, error) {
+func (n *Neo4J) GenerateCorrections(failedRuns []uint, msgs [][]*fi.Message) ([]string, error) {
+	return nil, nil
+}
+
+// GenerateCorrections
+func (n *Neo4J) GenerateCorrectionsOld(failedRuns []uint, msgs [][]*fi.Message) ([][]string, error) {
 
 	fmt.Printf("Running generation of suggestions for corrections (pre ~> post)... ")
 

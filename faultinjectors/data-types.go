@@ -88,12 +88,13 @@ type Run struct {
 	TimePreHolds      map[string]bool `json:"timePreHolds,omitempty"`
 	PostProv          *ProvData       `json:"postProv,omitempty"`
 	TimePostHolds     map[string]bool `json:"timePostHolds,omitempty"`
+	Recommendation    []string        `json:"recommendation,omitempty"`
 	Corrections       []string        `json:"corrections,omitempty"`
+	MissingEvents     []*Missing      `json:"missingEvents,omitempty"`
 	InterProto        []string        `json:"interProto,omitempty"`
 	InterProtoMissing []string        `json:"interProtoMissing,omitempty"`
 	UnionProto        []string        `json:"unionProto,omitempty"`
 	UnionProtoMissing []string        `json:"unionProtoMissing,omitempty"`
-	MissingEvents     []*Missing      `json:"missingEvents,omitempty"`
 }
 
 // Molly

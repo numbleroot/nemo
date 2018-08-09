@@ -39,7 +39,8 @@ type GraphDatabase interface {
 	CreatePrototypes([]uint, []uint) ([]string, [][]string, []string, [][]string, error)
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, error)
 	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]*fi.Missing, error)
-	GenerateCorrections([]uint, [][]*fi.Message) ([][]string, error)
+	GenerateCorrections([]uint, [][]*fi.Message) ([]string, error)
+	GenerateCorrectionsOld([]uint, [][]*fi.Message) ([][]string, error)
 }
 
 // Reporter
@@ -166,7 +167,7 @@ func main() {
 	// Determine correction suggestions (pre ~> diffprov).
 	if len(failedIters) > 0 {
 
-		corrections, err = debugRun.graphDB.GenerateCorrections(failedIters, debugRun.faultInj.GetMsgsFailedRuns())
+		corrections, err = debugRun.graphDB.GenerateCorrectionsOld(failedIters, debugRun.faultInj.GetMsgsFailedRuns())
 		if err != nil {
 			log.Fatalf("Error while putting together important events pairs from pre ~> post: %v", err)
 		}
@@ -179,6 +180,22 @@ func main() {
 
 	runs := debugRun.faultInj.GetOutput()
 	for i := range iters {
+
+		// Progressively formulate one top-level recommendation
+		// for programmers to focus on first.
+		// Hierarchy:
+		//     1. If bug => suggest corrections.
+		//     2. If missing fault tolerance => suggest extensions.
+		//     3. None of both => congratulations!
+		if len(corrections) > 0 {
+			runs[iters[i]].Recommendation = corrections[0]
+		} else if len(missingEvents) > 0 {
+			// runs[iters[i]].Recommendation = missingEvents[0]
+		} else {
+			runs[iters[i]].Recommendation = make([]string, 0, 1)
+			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "rofl lol")
+		}
+
 		runs[iters[i]].InterProto = interProto
 		runs[iters[i]].UnionProto = unionProto
 	}

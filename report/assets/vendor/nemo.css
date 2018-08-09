@@ -19,6 +19,12 @@ body pre, body code { font-size: 100%; }
 }
 
 #runs-table { width: 100%; }
+
+#recommendation pre {
+    display: inline;
+    font-weight: bold;
+}
+
 #hazard-analysis img { width: 50%; }
 
 .anchor {
