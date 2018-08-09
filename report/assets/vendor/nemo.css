@@ -4,6 +4,7 @@ img {
     display: block;
     width: 100%;
     height: auto;
+    margin: 0 auto;
 }
 
 body pre, body code { font-size: 100%; }
@@ -18,6 +19,7 @@ body pre, body code { font-size: 100%; }
 }
 
 #runs-table { width: 100%; }
+#hazard-analysis img { width: 50%; }
 
 .anchor {
     position: relative;
