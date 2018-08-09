@@ -33,7 +33,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 
 	// Determine if there is non-triviality (i.e., async events)
 	// in the failed run's precondition provenance.
-	stmtPreAsync, err := n.Conn2.PrepareNeo(`
+	stmtPreAsync, err := n.Conn1.PrepareNeo(`
         MATCH path = (root {run: {run}, condition: "pre"})-[*0..]->(r1:Rule {run: {run}, condition: "pre", type: "async"})-[*0..]->(r2:Rule {run: {run}, condition: "pre", type: "async"})
 		WHERE NOT ()-->(root)
 		WITH r2, collect(r1) AS history
@@ -126,6 +126,11 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 		return nil, nil, err
 	}
 
+	err = stmtPreAsync.Close()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Determine if there is non-triviality (i.e., async events)
 	// in differential postcondition provenance.
 	stmtDiffAsync, err := n.Conn1.PrepareNeo(`
@@ -202,11 +207,96 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 		return nil, nil, err
 	}
 
+	err = stmtDiffAsync.Close()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	return preAsyncs, diffAsyncs, nil
 }
 
-// GenerateCorrections
+// findTriggerEvents extracts the trigger events
+// that mark the transition from specified condition
+// being false to being true.
+func (n *Neo4J) findTriggerEvents(run int, condition string) ([]*CorrectionsPair, error) {
+
+	stmtTriggers, err := n.Conn1.PrepareNeo(`
+        MATCH (g:Goal {run: {run}, condition: {condition}, condition_holds: true})-[*1]->(r:Rule {run: {run}, condition: {condition}})-[*1]->(:Goal {run: {run}, condition: {condition}, condition_holds: false})
+		RETURN g AS goal, r AS rule;
+    `)
+	if err != nil {
+		return nil, err
+	}
+
+	triggersRaw, err := stmtTriggers.QueryNeo(map[string]interface{}{
+		"run":       run,
+		"condition": condition,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	triggers := make([]*CorrectionsPair, 0, 5)
+
+	for err == nil {
+
+		var trigger []interface{}
+
+		trigger, _, err = triggersRaw.NextNeo()
+		if err != nil && err != io.EOF {
+			return nil, err
+		} else if err == nil {
+
+			fmt.Printf("Trigger: '%#v'\n", trigger)
+		}
+	}
+
+	err = triggersRaw.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	err = stmtTriggers.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return triggers, nil
+}
+
+// GenerateCorrections analyzes the available precondition
+// provenance of the successful run and the postcondition
+// provenance of the difference between successful and
+// unsuccessful postcondition provenance. It then synthesizes
+// correction suggestions based on making the precondition
+// stricter by increasing dependencies.
 func (n *Neo4J) GenerateCorrections(failedRuns []uint, msgs [][]*fi.Message) ([]string, error) {
+
+	// Collect all leaf nodes of the branches originating
+	// in precondition root nodes of the good execution and
+	// terminating one level after the precondition was
+	// marked as achieved.
+	preTriggers, err := n.findTriggerEvents(0, "pre")
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("preTriggers: '%#v'\n", preTriggers)
+
+	// Collect all leaf nodes of the differential
+	// postcondition provenance (good - bad) originating
+	// in the root nodes of the differential provenance
+	// and terminating one level after the postcondition
+	// was marked as achieved.
+	postTriggers, err := n.findTriggerEvents(2002, "post")
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("postTriggers: '%#v'\n", postTriggers)
+
+	// Relate these two sets such that the precondition
+	// leafs depend on having knowledge about the differential
+	// nodes taking place.
+
 	return nil, nil
 }
 
