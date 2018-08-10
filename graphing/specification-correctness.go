@@ -218,15 +218,15 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 // findTriggerEvents extracts the trigger events
 // that mark the transition from specified condition
 // being false to being true.
-func (n *Neo4J) findTriggerEvents(run int, condition string) ([]*CorrectionsPair, error) {
+func (n *Neo4J) findTriggerEvents(run uint, condition string) ([]*fi.Rule, []*CorrectionsPair, error) {
 
 	stmtTriggers, err := n.Conn1.PrepareNeo(`
-		MATCH (g:Goal {run: {run}, condition: {condition}, condition_holds: true})-[*1]->(r:Rule {run: {run}, condition: {condition}})
+		MATCH (a:Rule {run: {run}, condition: {condition}})-[*1]->(g:Goal {run: {run}, condition: {condition}, condition_holds: true})-[*1]->(r:Rule {run: {run}, condition: {condition}})
 		WHERE (r)-[*1]->(:Goal {run: {run}, condition: {condition}, condition_holds: false})
-		RETURN g, r;
+		RETURN a AS aggregation, g AS goal, r AS rule;
     `)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	triggersRaw, err := stmtTriggers.QueryNeo(map[string]interface{}{
@@ -234,9 +234,10 @@ func (n *Neo4J) findTriggerEvents(run int, condition string) ([]*CorrectionsPair
 		"condition": condition,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	aggregations := make([]*fi.Rule, 0, 5)
 	triggers := make([]*CorrectionsPair, 0, 5)
 
 	for err == nil {
@@ -245,12 +246,17 @@ func (n *Neo4J) findTriggerEvents(run int, condition string) ([]*CorrectionsPair
 
 		trigger, _, err = triggersRaw.NextNeo()
 		if err != nil && err != io.EOF {
-			return nil, err
+			return nil, nil, err
 		} else if err == nil {
 
-			// Type-assert the two nodes into well-defined struct.
-			goal := trigger[0].(graph.Node)
-			rule := trigger[1].(graph.Node)
+			// Type-assert the three nodes into well-defined struct.
+			agg := trigger[0].(graph.Node)
+			goal := trigger[1].(graph.Node)
+			rule := trigger[2].(graph.Node)
+
+			// Provide raw name excluding "_provX" ending.
+			aggLabelParts := strings.Split(agg.Properties["label"].(string), "_")
+			agg.Properties["table"] = strings.Join(aggLabelParts[:(len(aggLabelParts)-1)], "_")
 
 			// Parse parts that make up label of goal.
 			goalLabel := strings.TrimLeft(goal.Properties["label"].(string), goal.Properties["table"].(string))
@@ -259,7 +265,15 @@ func (n *Neo4J) findTriggerEvents(run int, condition string) ([]*CorrectionsPair
 
 			// Provide raw name excluding "_provX" ending.
 			ruleLabelParts := strings.Split(rule.Properties["label"].(string), "_")
-			rule.Properties["label"] = strings.Join(ruleLabelParts[:(len(ruleLabelParts)-1)], "_")
+			rule.Properties["table"] = strings.Join(ruleLabelParts[:(len(ruleLabelParts)-1)], "_")
+
+			// Append condition-firing aggregation rule to slice.
+			aggregations = append(aggregations, &fi.Rule{
+				ID:    agg.Properties["id"].(string),
+				Label: agg.Properties["label"].(string),
+				Table: agg.Properties["table"].(string),
+				Type:  agg.Properties["type"].(string),
+			})
 
 			// Append to slice of correction pairs.
 			triggers = append(triggers, &CorrectionsPair{
@@ -274,7 +288,7 @@ func (n *Neo4J) findTriggerEvents(run int, condition string) ([]*CorrectionsPair
 				Rule: &fi.Rule{
 					ID:    rule.Properties["id"].(string),
 					Label: rule.Properties["label"].(string),
-					Table: rule.Properties["label"].(string),
+					Table: rule.Properties["table"].(string),
 					Type:  rule.Properties["type"].(string),
 				},
 			})
@@ -283,15 +297,15 @@ func (n *Neo4J) findTriggerEvents(run int, condition string) ([]*CorrectionsPair
 
 	err = triggersRaw.Close()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	err = stmtTriggers.Close()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return triggers, nil
+	return aggregations, triggers, nil
 }
 
 // GenerateCorrections analyzes the available precondition
@@ -306,12 +320,12 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint, msgs [][]*fi.Message) ([]
 	// in precondition root nodes of the good execution and
 	// terminating one level after the precondition was
 	// marked as achieved.
-	preTriggers, err := n.findTriggerEvents(0, "pre")
+	preAgg, preTriggers, err := n.findTriggerEvents(0, "pre")
 	if err != nil {
 		return nil, err
 	}
-	for i := range preTriggers {
-		fmt.Printf("preTriggers[%d]:\tGoal: '%#v'\tRule:'%#v'\n", i, preTriggers[i].Goal, preTriggers[i].Rule)
+	for u := range preAgg {
+		fmt.Printf("preAgg[%d]:  Rule: '%#v'\t\tpreTriggers[%d]:\tGoal: '%#v'\tRule:'%#v'\n", u, preAgg[u], u, preTriggers[u].Goal, preTriggers[u].Rule)
 	}
 	fmt.Println()
 
@@ -320,12 +334,12 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint, msgs [][]*fi.Message) ([]
 	// in the root nodes of the differential provenance
 	// and terminating one level after the postcondition
 	// was marked as achieved.
-	postTriggers, err := n.findTriggerEvents(2002, "post")
+	postAgg, postTriggers, err := n.findTriggerEvents(0, "post")
 	if err != nil {
 		return nil, err
 	}
-	for i := range postTriggers {
-		fmt.Printf("postTriggers[%d]:\tGoal: '%#v'\tRule:'%#v'\n", i, postTriggers[i].Goal, postTriggers[i].Rule)
+	for u := range postAgg {
+		fmt.Printf("postAgg[%d]:  Rule: '%#v'\t\tpostTriggers[%d]:\tGoal: '%#v'\tRule:'%#v'\n", u, postAgg[u], u, postTriggers[u].Goal, postTriggers[u].Rule)
 	}
 	fmt.Println()
 
