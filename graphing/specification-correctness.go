@@ -220,6 +220,9 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 // being false to being true.
 func (n *Neo4J) findTriggerEvents(run uint, condition string) ([]*fi.Rule, []*CorrectionsPair, error) {
 
+	// TODO: Refine this query. We want:
+	//       Distinct aggregate nodes with
+	//       all children except clock facts.
 	stmtTriggers, err := n.Conn1.PrepareNeo(`
 		MATCH (a:Rule {run: {run}, condition: {condition}})-[*1]->(g:Goal {run: {run}, condition: {condition}, condition_holds: true})-[*1]->(r:Rule {run: {run}, condition: {condition}})
 		WHERE (r)-[*1]->(:Goal {run: {run}, condition: {condition}, condition_holds: false})
@@ -314,7 +317,12 @@ func (n *Neo4J) findTriggerEvents(run uint, condition string) ([]*fi.Rule, []*Co
 // unsuccessful postcondition provenance. It then synthesizes
 // correction suggestions based on making the precondition
 // stricter by increasing dependencies.
-func (n *Neo4J) GenerateCorrections(failedRuns []uint, msgs [][]*fi.Message) ([]string, error) {
+func (n *Neo4J) GenerateCorrections() ([]string, error) {
+
+	// TODO: Rework this, pretty shaky right now.
+
+	recs := make([]string, 0, 6)
+	considered := make(map[string]bool)
 
 	// Collect all leaf nodes of the branches originating
 	// in precondition root nodes of the good execution and
@@ -324,30 +332,55 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint, msgs [][]*fi.Message) ([]
 	if err != nil {
 		return nil, err
 	}
-	for u := range preAgg {
-		fmt.Printf("preAgg[%d]:  Rule: '%#v'\t\tpreTriggers[%d]:\tGoal: '%#v'\tRule:'%#v'\n", u, preAgg[u], u, preTriggers[u].Goal, preTriggers[u].Rule)
+
+	var preTriggerRules string
+	for i := range preTriggers {
+
+		if preTriggerRules == "" {
+			preTriggerRules = fmt.Sprintf("%s(...)", preTriggers[i].Rule.Table)
+		} else {
+			preTriggerRules = fmt.Sprintf(", %s(...)", preTriggers[i].Rule.Table)
+		}
+
+		// Mark as considered.
+		considered[preTriggers[i].Rule.Table] = true
 	}
-	fmt.Println()
 
 	// Collect all leaf nodes of the differential
 	// postcondition provenance (good - bad) originating
 	// in the root nodes of the differential provenance
 	// and terminating one level after the postcondition
 	// was marked as achieved.
-	postAgg, postTriggers, err := n.findTriggerEvents(0, "post")
+	_, postTriggers, err := n.findTriggerEvents(0, "post")
 	if err != nil {
 		return nil, err
 	}
-	for u := range postAgg {
-		fmt.Printf("postAgg[%d]:  Rule: '%#v'\t\tpostTriggers[%d]:\tGoal: '%#v'\tRule:'%#v'\n", u, postAgg[u], u, postTriggers[u].Goal, postTriggers[u].Rule)
+
+	var postTriggerRules string
+	for i := range postTriggers {
+
+		if !considered[postTriggers[i].Rule.Table] {
+
+			if postTriggerRules == "" {
+				postTriggerRules = fmt.Sprintf("%s(...)", postTriggers[i].Rule.Table)
+			} else {
+				postTriggerRules = fmt.Sprintf(", %s(...)", postTriggers[i].Rule.Table)
+			}
+
+			// Mark as considered.
+			considered[postTriggers[i].Rule.Table] = true
+		}
 	}
-	fmt.Println()
 
 	// Relate these two sets such that the precondition
 	// leafs depend on having knowledge about the differential
 	// nodes taking place.
+	correction := fmt.Sprintf("<code>%s(...) := %s;</code> &nbsp; <i class = \"fas fa-long-arrow-alt-right\"></i> &nbsp; <code>%s(...) := %s, %s;</code>", preAgg[0].Table, preTriggerRules, preAgg[0].Table, preTriggerRules, postTriggerRules)
 
-	return nil, nil
+	recs = append(recs, "A fault occurred. Let's try making the protocol correct first. Change:")
+	recs = append(recs, correction)
+
+	return recs, nil
 }
 
 // GenerateCorrections

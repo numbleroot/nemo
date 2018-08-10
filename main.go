@@ -39,7 +39,7 @@ type GraphDatabase interface {
 	CreatePrototypes([]uint, []uint) ([]string, [][]string, []string, [][]string, error)
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, error)
 	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]*fi.Missing, error)
-	GenerateCorrections([]uint, [][]*fi.Message) ([]string, error)
+	GenerateCorrections() ([]string, error)
 	GenerateCorrectionsOld([]uint, [][]*fi.Message) ([][]string, error)
 }
 
@@ -162,14 +162,21 @@ func main() {
 		log.Fatalf("Could not create the naive differential provenance (bad - good): %v", err)
 	}
 
-	var corrections [][]string
+	var corrections []string
+	var asyncCorrections [][]string
 
-	// Determine correction suggestions (pre ~> diffprov).
 	if len(failedIters) > 0 {
 
-		corrections, err = debugRun.graphDB.GenerateCorrectionsOld(failedIters, debugRun.faultInj.GetMsgsFailedRuns())
+		// Generate correction suggestions for moving towards correctness.
+		corrections, err = debugRun.graphDB.GenerateCorrections()
 		if err != nil {
-			log.Fatalf("Error while putting together important events pairs from pre ~> post: %v", err)
+			log.Fatalf("Error while generating corrections: %v", err)
+		}
+
+		// Determine message passing correction suggestions (pre ~> diffprov).
+		asyncCorrections, err = debugRun.graphDB.GenerateCorrectionsOld(failedIters, debugRun.faultInj.GetMsgsFailedRuns())
+		if err != nil {
+			log.Fatalf("Error while putting together important message passing event pairs from pre ~> post: %v", err)
 		}
 	}
 
@@ -188,12 +195,12 @@ func main() {
 		//     2. If missing fault tolerance => suggest extensions.
 		//     3. None of both => congratulations!
 		if len(corrections) > 0 {
-			runs[iters[i]].Recommendation = corrections[0]
+			runs[iters[i]].Recommendation = corrections
 		} else if len(missingEvents) > 0 {
 			// runs[iters[i]].Recommendation = missingEvents[0]
 		} else {
 			runs[iters[i]].Recommendation = make([]string, 0, 1)
-			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "rofl lol")
+			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "All good! No faults, no missing fault tolerance. Well done!")
 		}
 
 		runs[iters[i]].InterProto = interProto
@@ -202,7 +209,7 @@ func main() {
 
 	j := 0
 	for i := range failedIters {
-		runs[failedIters[i]].Corrections = corrections[j]
+		runs[failedIters[i]].Corrections = asyncCorrections[j]
 		runs[failedIters[i]].MissingEvents = missingEvents[j]
 		runs[failedIters[i]].InterProtoMissing = interProtoMiss[j]
 		runs[failedIters[i]].UnionProtoMissing = unionProtoMiss[j]
