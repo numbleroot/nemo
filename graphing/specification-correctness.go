@@ -34,7 +34,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 	// Determine if there is non-triviality (i.e., async events)
 	// in the failed run's precondition provenance.
 	stmtPreAsync, err := n.Conn1.PrepareNeo(`
-        MATCH path = (root {run: {run}, condition: "pre"})-[*0..]->(r1:Rule {run: {run}, condition: "pre", type: "async"})-[*0..]->(r2:Rule {run: {run}, condition: "pre", type: "async"})
+		MATCH path = (root {run: {run}, condition: "pre"})-[*0..]->(r1:Rule {run: {run}, condition: "pre", type: "async"})-[*0..]->(r2:Rule {run: {run}, condition: "pre", type: "async"})
 		WHERE NOT ()-->(root)
 		WITH r2, collect(r1) AS history
 
@@ -134,7 +134,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 	// Determine if there is non-triviality (i.e., async events)
 	// in differential postcondition provenance.
 	stmtDiffAsync, err := n.Conn1.PrepareNeo(`
-        MATCH path = (root {run: {run}, condition: "post"})-[*0..]->(r1:Rule {run: {run}, condition: "post", type: "async"})-[*0..]->(r2:Rule {run: {run}, condition: "post", type: "async"})
+		MATCH path = (root {run: {run}, condition: "post"})-[*0..]->(r1:Rule {run: {run}, condition: "post", type: "async"})-[*0..]->(r2:Rule {run: {run}, condition: "post", type: "async"})
 		WHERE NOT ()-->(root)
 		WITH r2, collect(r1) AS history
 
@@ -221,8 +221,9 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 func (n *Neo4J) findTriggerEvents(run int, condition string) ([]*CorrectionsPair, error) {
 
 	stmtTriggers, err := n.Conn1.PrepareNeo(`
-        MATCH (g:Goal {run: {run}, condition: {condition}, condition_holds: true})-[*1]->(r:Rule {run: {run}, condition: {condition}})-[*1]->(:Goal {run: {run}, condition: {condition}, condition_holds: false})
-		RETURN g AS goal, r AS rule;
+		MATCH (g:Goal {run: {run}, condition: {condition}, condition_holds: true})-[*1]->(r:Rule {run: {run}, condition: {condition}})
+		WHERE (r)-[*1]->(:Goal {run: {run}, condition: {condition}, condition_holds: false})
+		RETURN g, r;
     `)
 	if err != nil {
 		return nil, err
@@ -247,7 +248,36 @@ func (n *Neo4J) findTriggerEvents(run int, condition string) ([]*CorrectionsPair
 			return nil, err
 		} else if err == nil {
 
-			fmt.Printf("Trigger: '%#v'\n", trigger)
+			// Type-assert the two nodes into well-defined struct.
+			goal := trigger[0].(graph.Node)
+			rule := trigger[1].(graph.Node)
+
+			// Parse parts that make up label of goal.
+			goalLabel := strings.TrimLeft(goal.Properties["label"].(string), goal.Properties["table"].(string))
+			goalLabel = strings.Trim(goalLabel, "()")
+			goalLabelParts := strings.Split(goalLabel, ", ")
+
+			// Provide raw name excluding "_provX" ending.
+			ruleLabelParts := strings.Split(rule.Properties["label"].(string), "_")
+			rule.Properties["label"] = strings.Join(ruleLabelParts[:(len(ruleLabelParts)-1)], "_")
+
+			// Append to slice of correction pairs.
+			triggers = append(triggers, &CorrectionsPair{
+				Goal: &fi.Goal{
+					ID:        goal.Properties["id"].(string),
+					Label:     goal.Properties["label"].(string),
+					Table:     goal.Properties["table"].(string),
+					Time:      goal.Properties["time"].(string),
+					CondHolds: goal.Properties["condition_holds"].(bool),
+					Receiver:  goalLabelParts[0],
+				},
+				Rule: &fi.Rule{
+					ID:    rule.Properties["id"].(string),
+					Label: rule.Properties["label"].(string),
+					Table: rule.Properties["label"].(string),
+					Type:  rule.Properties["type"].(string),
+				},
+			})
 		}
 	}
 
@@ -280,7 +310,10 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint, msgs [][]*fi.Message) ([]
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("preTriggers: '%#v'\n", preTriggers)
+	for i := range preTriggers {
+		fmt.Printf("preTriggers[%d]:\tGoal: '%#v'\tRule:'%#v'\n", i, preTriggers[i].Goal, preTriggers[i].Rule)
+	}
+	fmt.Println()
 
 	// Collect all leaf nodes of the differential
 	// postcondition provenance (good - bad) originating
@@ -291,7 +324,10 @@ func (n *Neo4J) GenerateCorrections(failedRuns []uint, msgs [][]*fi.Message) ([]
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("postTriggers: '%#v'\n", postTriggers)
+	for i := range postTriggers {
+		fmt.Printf("postTriggers[%d]:\tGoal: '%#v'\tRule:'%#v'\n", i, postTriggers[i].Goal, postTriggers[i].Rule)
+	}
+	fmt.Println()
 
 	// Relate these two sets such that the precondition
 	// leafs depend on having knowledge about the differential
