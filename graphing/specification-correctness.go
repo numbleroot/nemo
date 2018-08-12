@@ -12,10 +12,10 @@ import (
 
 // Structs.
 
-// CorrectionsPair
-type CorrectionsPair struct {
-	Rule *fi.Rule
+// GoalRulePair
+type GoalRulePair struct {
 	Goal *fi.Goal
+	Rule *fi.Rule
 }
 
 // Dependency
@@ -27,7 +27,7 @@ type Dependency struct {
 // Functions.
 
 // findAsyncEvents
-func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*CorrectionsPair, []*CorrectionsPair, error) {
+func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*GoalRulePair, []*GoalRulePair, error) {
 
 	diffRunID := 2000 + failedRun
 
@@ -53,7 +53,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 		return nil, nil, err
 	}
 
-	preAsyncs := make([]*CorrectionsPair, 0, 5)
+	preAsyncs := make([]*GoalRulePair, 0, 5)
 
 	for err == nil {
 
@@ -100,13 +100,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 				}
 
 				// Append to slice of correction pairs.
-				preAsyncs = append(preAsyncs, &CorrectionsPair{
-					Rule: &fi.Rule{
-						ID:    rule.Properties["id"].(string),
-						Label: rule.Properties["label"].(string),
-						Table: rule.Properties["table"].(string),
-						Type:  rule.Properties["type"].(string),
-					},
+				preAsyncs = append(preAsyncs, &GoalRulePair{
 					Goal: &fi.Goal{
 						ID:        goal.Properties["id"].(string),
 						Label:     goal.Properties["label"].(string),
@@ -115,6 +109,12 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 						CondHolds: goal.Properties["condition_holds"].(bool),
 						Sender:    sender,
 						Receiver:  goalLabelParts[0],
+					},
+					Rule: &fi.Rule{
+						ID:    rule.Properties["id"].(string),
+						Label: rule.Properties["label"].(string),
+						Table: rule.Properties["table"].(string),
+						Type:  rule.Properties["type"].(string),
 					},
 				})
 			}
@@ -153,7 +153,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 		return nil, nil, err
 	}
 
-	diffAsyncs := make([]*CorrectionsPair, 0, 5)
+	diffAsyncs := make([]*GoalRulePair, 0, 5)
 
 	for err == nil {
 
@@ -182,13 +182,7 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 				goalLabelParts := strings.Split(goalLabel, ", ")
 
 				// Append to slice of correction pairs.
-				diffAsyncs = append(diffAsyncs, &CorrectionsPair{
-					Rule: &fi.Rule{
-						ID:    rule.Properties["id"].(string),
-						Label: rule.Properties["label"].(string),
-						Table: rule.Properties["table"].(string),
-						Type:  rule.Properties["type"].(string),
-					},
+				diffAsyncs = append(diffAsyncs, &GoalRulePair{
 					Goal: &fi.Goal{
 						ID:        goal.Properties["id"].(string),
 						Label:     goal.Properties["label"].(string),
@@ -196,6 +190,12 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 						Time:      goal.Properties["time"].(string),
 						CondHolds: goal.Properties["condition_holds"].(bool),
 						Receiver:  goalLabelParts[0],
+					},
+					Rule: &fi.Rule{
+						ID:    rule.Properties["id"].(string),
+						Label: rule.Properties["label"].(string),
+						Table: rule.Properties["table"].(string),
+						Type:  rule.Properties["type"].(string),
 					},
 				})
 			}
@@ -216,20 +216,20 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*Correcti
 }
 
 // findTriggerEvents extracts the trigger events
-// that mark the transition from specified condition
+// that mark the transition from passed condition
 // being false to being true.
-func (n *Neo4J) findTriggerEvents(run uint, condition string) ([]*fi.Rule, []*CorrectionsPair, error) {
+func (n *Neo4J) findTriggerEvents(run uint, condition string) (map[*fi.Rule][]*GoalRulePair, error) {
 
-	// TODO: Refine this query. We want:
-	//       Distinct aggregate nodes with
-	//       all children except clock facts.
+	// Query run and condition provenance specified via function
+	// arguments for event chains representing the following form:
+	// aggregation rule, trigger goal, trigger rule.
 	stmtTriggers, err := n.Conn1.PrepareNeo(`
 		MATCH (a:Rule {run: {run}, condition: {condition}})-[*1]->(g:Goal {run: {run}, condition: {condition}, condition_holds: true})-[*1]->(r:Rule {run: {run}, condition: {condition}})
 		WHERE (r)-[*1]->(:Goal {run: {run}, condition: {condition}, condition_holds: false})
 		RETURN a AS aggregation, g AS goal, r AS rule;
     `)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	triggersRaw, err := stmtTriggers.QueryNeo(map[string]interface{}{
@@ -237,11 +237,12 @@ func (n *Neo4J) findTriggerEvents(run uint, condition string) ([]*fi.Rule, []*Co
 		"condition": condition,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	aggregations := make([]*fi.Rule, 0, 5)
-	triggers := make([]*CorrectionsPair, 0, 5)
+	// Prepare a map indexed by aggregation rule,
+	// collecting all trigger goals and rules.
+	triggers := make(map[*fi.Rule][]*GoalRulePair)
 
 	for err == nil {
 
@@ -249,7 +250,7 @@ func (n *Neo4J) findTriggerEvents(run uint, condition string) ([]*fi.Rule, []*Co
 
 		trigger, _, err = triggersRaw.NextNeo()
 		if err != nil && err != io.EOF {
-			return nil, nil, err
+			return nil, err
 		} else if err == nil {
 
 			// Type-assert the three nodes into well-defined struct.
@@ -257,7 +258,7 @@ func (n *Neo4J) findTriggerEvents(run uint, condition string) ([]*fi.Rule, []*Co
 			goal := trigger[1].(graph.Node)
 			rule := trigger[2].(graph.Node)
 
-			// Provide raw name excluding "_provX" ending.
+			// Extract raw name excluding "_provX" ending.
 			aggLabelParts := strings.Split(agg.Properties["label"].(string), "_")
 			agg.Properties["table"] = strings.Join(aggLabelParts[:(len(aggLabelParts)-1)], "_")
 
@@ -266,20 +267,24 @@ func (n *Neo4J) findTriggerEvents(run uint, condition string) ([]*fi.Rule, []*Co
 			goalLabel = strings.Trim(goalLabel, "()")
 			goalLabelParts := strings.Split(goalLabel, ", ")
 
-			// Provide raw name excluding "_provX" ending.
+			// Extract raw name excluding "_provX" ending.
 			ruleLabelParts := strings.Split(rule.Properties["label"].(string), "_")
 			rule.Properties["table"] = strings.Join(ruleLabelParts[:(len(ruleLabelParts)-1)], "_")
 
-			// Append condition-firing aggregation rule to slice.
-			aggregations = append(aggregations, &fi.Rule{
+			aggregation := &fi.Rule{
 				ID:    agg.Properties["id"].(string),
 				Label: agg.Properties["label"].(string),
 				Table: agg.Properties["table"].(string),
 				Type:  agg.Properties["type"].(string),
-			})
+			}
 
-			// Append to slice of correction pairs.
-			triggers = append(triggers, &CorrectionsPair{
+			if len(triggers[aggregation]) < 1 {
+				triggers[aggregation] = make([]*GoalRulePair, 0, 4)
+			}
+
+			// Insert goal-rule pair into slice indexed
+			// by aggregation rule.
+			triggers[aggregation] = append(triggers[aggregation], &GoalRulePair{
 				Goal: &fi.Goal{
 					ID:        goal.Properties["id"].(string),
 					Label:     goal.Properties["label"].(string),
@@ -300,85 +305,97 @@ func (n *Neo4J) findTriggerEvents(run uint, condition string) ([]*fi.Rule, []*Co
 
 	err = triggersRaw.Close()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = stmtTriggers.Close()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return aggregations, triggers, nil
+	return triggers, nil
 }
 
-// GenerateCorrections analyzes the available precondition
-// provenance of the successful run and the postcondition
-// provenance of the difference between successful and
-// unsuccessful postcondition provenance. It then synthesizes
-// correction suggestions based on making the precondition
-// stricter by increasing dependencies.
+// GenerateCorrections
 func (n *Neo4J) GenerateCorrections() ([]string, error) {
 
-	// TODO: Rework this, pretty shaky right now.
-
+	// Recs will contain our top-level recommendations.
 	recs := make([]string, 0, 6)
-	considered := make(map[string]bool)
 
-	// Collect all leaf nodes of the branches originating
-	// in precondition root nodes of the good execution and
-	// terminating one level after the precondition was
-	// marked as achieved.
-	preAgg, preTriggers, err := n.findTriggerEvents(0, "pre")
+	preTriggers, err := n.findTriggerEvents(0, "pre")
 	if err != nil {
 		return nil, err
 	}
 
-	var preTriggerRules string
-	for i := range preTriggers {
-
-		if preTriggerRules == "" {
-			preTriggerRules = fmt.Sprintf("%s(...)", preTriggers[i].Rule.Table)
-		} else {
-			preTriggerRules = fmt.Sprintf(", %s(...)", preTriggers[i].Rule.Table)
-		}
-
-		// Mark as considered.
-		considered[preTriggers[i].Rule.Table] = true
-	}
-
-	// Collect all leaf nodes of the differential
-	// postcondition provenance (good - bad) originating
-	// in the root nodes of the differential provenance
-	// and terminating one level after the postcondition
-	// was marked as achieved.
-	_, postTriggers, err := n.findTriggerEvents(0, "post")
+	postTriggers, err := n.findTriggerEvents(0, "post")
 	if err != nil {
 		return nil, err
 	}
 
-	var postTriggerRules string
-	for i := range postTriggers {
+	// Create string representations of the trigger rules
+	// responsible for firing the respective aggregation rule.
+	postTriggerRules := make([]string, len(postTriggers))
 
-		if !considered[postTriggers[i].Rule.Table] {
+	for agg := range postTriggers {
 
-			if postTriggerRules == "" {
-				postTriggerRules = fmt.Sprintf("%s(...)", postTriggers[i].Rule.Table)
+		u := 0
+
+		for i := range postTriggers[agg] {
+
+			if postTriggerRules[u] == "" {
+				postTriggerRules[u] = fmt.Sprintf("%s(...)", postTriggers[agg][i].Rule.Table)
 			} else {
-				postTriggerRules = fmt.Sprintf(", %s(...)", postTriggers[i].Rule.Table)
+				postTriggerRules[u] = fmt.Sprintf("%s, %s(...)", postTriggerRules[u], postTriggers[agg][i].Rule.Table)
 			}
-
-			// Mark as considered.
-			considered[postTriggers[i].Rule.Table] = true
 		}
-	}
 
-	// Relate these two sets such that the precondition
-	// leafs depend on having knowledge about the differential
-	// nodes taking place.
-	correction := fmt.Sprintf("<code>%s(...) := %s;</code> &nbsp; <i class = \"fas fa-long-arrow-alt-right\"></i> &nbsp; <code>%s(...) := %s, %s;</code>", preAgg[0].Table, preTriggerRules, preAgg[0].Table, preTriggerRules, postTriggerRules)
+		u++
+	}
 
 	recs = append(recs, "A fault occurred. Let's try making the protocol correct first. Change:")
-	recs = append(recs, correction)
+
+	// Prepare slice of strings representing the
+	// compound of trigger rules required for firing
+	// the respective aggregation rule.
+	preTriggerRules := make(map[string]string)
+
+	for preAgg := range preTriggers {
+
+		// Track which rules we already considered for
+		// this aggregation rule.
+		considered := make(map[string]bool)
+
+		for i := range preTriggers[preAgg] {
+
+			// Only add next rule if we have not yet considered it.
+			if !considered[preTriggers[preAgg][i].Rule.Table] {
+
+				if preTriggerRules[preAgg.Table] == "" {
+					preTriggerRules[preAgg.Table] = fmt.Sprintf("%s(...) := %s(...)", preAgg.Table, preTriggers[preAgg][i].Rule.Table)
+				} else {
+					preTriggerRules[preAgg.Table] = fmt.Sprintf("%s, %s(...)", preTriggerRules[preAgg.Table], preTriggers[preAgg][i].Rule.Table)
+				}
+
+				// After inclusion, mark trigger rule as considered.
+				considered[preTriggers[preAgg][i].Rule.Table] = true
+			}
+		}
+
+		aggNew := preTriggerRules[preAgg.Table]
+
+		for postAgg := range postTriggers {
+
+			for i := range postTriggers[postAgg] {
+
+				if !considered[postTriggers[postAgg][i].Rule.Table] {
+
+					aggNew = fmt.Sprintf("%s, %s(...)", aggNew, postTriggers[postAgg][i].Rule.Table)
+				}
+			}
+		}
+
+		recs = append(recs, fmt.Sprintf("<code>%s;</code> &nbsp; <i class = \"fas fa-long-arrow-alt-right\"></i> &nbsp; <code>%s;</code>", preTriggerRules[preAgg.Table], aggNew))
+	}
 
 	return recs, nil
 }
