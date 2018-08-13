@@ -2,7 +2,6 @@ package graphing
 
 import (
 	"fmt"
-	"regexp"
 )
 
 // extractProtos extracts the intersection-prototype
@@ -10,18 +9,18 @@ import (
 func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []string, error) {
 
 	stmtCondRules, err := n.Conn1.PrepareNeo(`
-	MATCH path = (root:Goal {run: {run}, condition: {condition}})-[*1]->(r1:Rule {run: {run}, condition: {condition}})-[*1..]->(r2:Rule {run: {run}, condition: {condition}})
-	OPTIONAL MATCH (g:Goal {run: {run}, condition: "pre", condition_holds: true})
-	WITH path, root, collect(g) AS existsSuccess, length(path) AS len
-	WHERE size(existsSuccess) > 0 AND not(()-->(root))
-	WITH path, len
-	ORDER BY len DESC
-	WITH collect(nodes(path)) AS nodes
-	WITH reduce(output = [], node IN nodes | output + node) AS nodes
-	WITH filter(node IN nodes WHERE exists(node.type)) AS rules
-	UNWIND rules AS rule
-	WITH collect(DISTINCT rule.label) AS rules
-	RETURN rules;
+		MATCH path = (root:Goal {run: {run}, condition: {condition}})-[*1]->(r1:Rule {run: {run}, condition: {condition}})-[*1..]->(r2:Rule {run: {run}, condition: {condition}})
+		OPTIONAL MATCH (g:Goal {run: {run}, condition: "pre", condition_holds: true})
+		WITH path, root, collect(g) AS existsSuccess, length(path) AS len
+		WHERE size(existsSuccess) > 0 AND not(()-->(root))
+		WITH path, len
+		ORDER BY len DESC
+		WITH collect(nodes(path)) AS nodes
+		WITH reduce(output = [], node IN nodes | output + node) AS nodes
+		WITH filter(node IN nodes WHERE exists(node.type)) AS rules
+		UNWIND rules AS rule
+		WITH collect(DISTINCT rule.label) AS rules
+		RETURN rules;
     `)
 	if err != nil {
 		return nil, nil, err
@@ -54,8 +53,6 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 			return nil, nil, err
 		}
 
-		provSuffixRegex := regexp.MustCompile(`(.*)_prov[\d]+`)
-
 		for j := range condAllRules {
 
 			for k := range condAllRules[j] {
@@ -64,17 +61,7 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 				rules := make([]string, len(rulesRaw))
 
 				for l := range rules {
-
 					rules[l] = rulesRaw[l].(string)
-
-					// Attempt to find '_provX' suffix.
-					provSuffixMatches := provSuffixRegex.FindStringSubmatch(rules[l])
-
-					// In case we found a suffix to be present,
-					// replace rules item with first part.
-					if len(provSuffixMatches) > 0 {
-						rules[l] = provSuffixMatches[1]
-					}
 				}
 
 				if len(rules) > 0 {
@@ -154,9 +141,9 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 func (n *Neo4J) missingFrom(proto []string, failedIter uint, condition string) ([]string, error) {
 
 	stmtMissRules, err := n.Conn1.PrepareNeo(`
-	MATCH (r:Rule {run: {run}, condition: {condition}})
-	WITH collect(DISTINCT r.label) AS rules
-	RETURN rules;
+		MATCH (r:Rule {run: {run}, condition: {condition}})
+		WITH collect(DISTINCT r.label) AS rules
+		RETURN rules;
     `)
 	if err != nil {
 		return nil, err

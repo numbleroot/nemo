@@ -76,10 +76,6 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*GoalRule
 				rule := preAsync[0].(graph.Node)
 				goal := preAsync[1].(graph.Node)
 
-				// Provide raw name excluding "_provX" ending.
-				ruleLabelParts := strings.Split(rule.Properties["label"].(string), "_")
-				rule.Properties["label"] = strings.Join(ruleLabelParts[:(len(ruleLabelParts)-1)], "_")
-
 				// Parse parts that make up label of goal.
 				goalLabel := strings.TrimLeft(goal.Properties["label"].(string), goal.Properties["table"].(string))
 				goalLabel = strings.Trim(goalLabel, "()")
@@ -172,10 +168,6 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*GoalRule
 				rule := diffAsync[0].(graph.Node)
 				goal := diffAsync[1].(graph.Node)
 
-				// Provide raw name excluding "_provX" ending.
-				ruleLabelParts := strings.Split(rule.Properties["label"].(string), "_")
-				rule.Properties["label"] = strings.Join(ruleLabelParts[:(len(ruleLabelParts)-1)], "_")
-
 				// Parse parts that make up label of goal.
 				goalLabel := strings.TrimLeft(goal.Properties["label"].(string), goal.Properties["table"].(string))
 				goalLabel = strings.Trim(goalLabel, "()")
@@ -258,18 +250,10 @@ func (n *Neo4J) findTriggerEvents(run uint, condition string) (map[*fi.Rule][]*G
 			goal := trigger[1].(graph.Node)
 			rule := trigger[2].(graph.Node)
 
-			// Extract raw name excluding "_provX" ending.
-			aggLabelParts := strings.Split(agg.Properties["label"].(string), "_")
-			agg.Properties["table"] = strings.Join(aggLabelParts[:(len(aggLabelParts)-1)], "_")
-
 			// Parse parts that make up label of goal.
 			goalLabel := strings.TrimLeft(goal.Properties["label"].(string), goal.Properties["table"].(string))
 			goalLabel = strings.Trim(goalLabel, "()")
 			goalLabelParts := strings.Split(goalLabel, ", ")
-
-			// Extract raw name excluding "_provX" ending.
-			ruleLabelParts := strings.Split(rule.Properties["label"].(string), "_")
-			rule.Properties["table"] = strings.Join(ruleLabelParts[:(len(ruleLabelParts)-1)], "_")
 
 			aggregation := &fi.Rule{
 				ID:    agg.Properties["id"].(string),
