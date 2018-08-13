@@ -316,24 +316,34 @@ func (n *Neo4J) findTriggerEvents(run uint, condition string) (map[*fi.Rule][]*G
 	return triggers, nil
 }
 
-// GenerateCorrections
+// GenerateCorrections extracts the triggering events required
+// to achieve pre- and postcondition in the first (successful)
+// run. We use this information in case the fault injector was
+// able to inject a fault that caused the invariant to be violated
+// in order to generate correction suggestions for how the system
+// designers could strengthen the precondition to only fire when
+// we are sure the postcondition holds as well.
 func (n *Neo4J) GenerateCorrections() ([]string, error) {
 
 	// Recs will contain our top-level recommendations.
 	recs := make([]string, 0, 6)
 
+	// Extract the precondition trigger event chains:
+	// aggregation rule -> trigger goals -> trigger rules.
 	preTriggers, err := n.findTriggerEvents(0, "pre")
 	if err != nil {
 		return nil, err
 	}
 
+	// Extract the postcondition trigger event chains:
+	// aggregation rule -> trigger goals -> trigger rules.
 	postTriggers, err := n.findTriggerEvents(0, "post")
 	if err != nil {
 		return nil, err
 	}
 
 	// Create string representations of the trigger rules
-	// responsible for firing the respective aggregation rule.
+	// for establishing the postcondition.
 	postTriggerRules := make([]string, len(postTriggers))
 
 	for agg := range postTriggers {
@@ -381,6 +391,7 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 			}
 		}
 
+		// Build the correction suggestion rule.
 		aggNew := preTriggerRules[preAgg.Table]
 
 		for postAgg := range postTriggers {
@@ -388,12 +399,12 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 			for i := range postTriggers[postAgg] {
 
 				if !considered[postTriggers[postAgg][i].Rule.Table] {
-
 					aggNew = fmt.Sprintf("%s, %s(...)", aggNew, postTriggers[postAgg][i].Rule.Table)
 				}
 			}
 		}
 
+		// Append our recommendation.
 		recs = append(recs, fmt.Sprintf("<code>%s;</code> &nbsp; <i class = \"fas fa-long-arrow-alt-right\"></i> &nbsp; <code>%s;</code>", preTriggerRules[preAgg.Table], aggNew))
 	}
 
