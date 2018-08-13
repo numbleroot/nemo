@@ -216,8 +216,8 @@ func (n *Neo4J) findTriggerEvents(run uint, condition string) (map[*fi.Rule][]*G
 	// arguments for event chains representing the following form:
 	// aggregation rule, trigger goal, trigger rule.
 	stmtTriggers, err := n.Conn1.PrepareNeo(`
-		MATCH (a:Rule {run: {run}, condition: {condition}})-[*1]->(g:Goal {run: {run}, condition: {condition}, condition_holds: true})-[*1]->(r:Rule {run: {run}, condition: {condition}})
-		WHERE (r)-[*1]->(:Goal {run: {run}, condition: {condition}, condition_holds: false})
+		MATCH (a:Rule {run: {run}, condition: {condition}})-[*1]->(g:Goal {run: {run}, condition: {condition}, condition_holds: false})-[*1]->(r:Rule {run: {run}, condition: {condition}})
+		WHERE (:Goal {run: {run}, condition: {condition}, condition_holds: true})-[*1]->(a)-[*1]->(g)-[*1]->(r)
 		RETURN a AS aggregation, g AS goal, r AS rule;
     `)
 	if err != nil {
