@@ -207,17 +207,17 @@ func (n *Neo4J) findAsyncEvents(failedRun uint, msgs []*fi.Message) ([]*GoalRule
 	return preAsyncs, diffAsyncs, nil
 }
 
-// findTriggerEvents extracts the trigger events
-// that mark the transition from passed condition
-// being false to being true.
-func (n *Neo4J) findTriggerEvents(run uint, condition string) (map[*fi.Rule][]*GoalRulePair, error) {
+// findPreTriggers extracts the trigger events
+// that mark the transition from the precondition
+// turning from false to true.
+func (n *Neo4J) findPreTriggers(run uint) (map[*fi.Rule][]*GoalRulePair, error) {
 
-	// Query run and condition provenance specified via function
-	// arguments for event chains representing the following form:
+	// Query precondition provenance of specified run
+	// for event chains representing the following form:
 	// aggregation rule, trigger goal, trigger rule.
 	stmtTriggers, err := n.Conn1.PrepareNeo(`
-		MATCH (a:Rule {run: {run}, condition: {condition}})-[*1]->(g:Goal {run: {run}, condition: {condition}, condition_holds: false})-[*1]->(r:Rule {run: {run}, condition: {condition}})
-		WHERE (:Goal {run: {run}, condition: {condition}, condition_holds: true})-[*1]->(a)-[*1]->(g)-[*1]->(r)
+		MATCH (a:Rule {run: {run}, condition: "pre"})-[*1]->(g:Goal {run: {run}, condition: "pre", condition_holds: false})-[*1]->(r:Rule {run: {run}, condition: "pre"})
+		WHERE (:Goal {run: {run}, condition: "pre", condition_holds: true})-[*1]->(a)-[*1]->(g)-[*1]->(r)
 		RETURN a AS aggregation, g AS goal, r AS rule;
     `)
 	if err != nil {
@@ -225,8 +225,7 @@ func (n *Neo4J) findTriggerEvents(run uint, condition string) (map[*fi.Rule][]*G
 	}
 
 	triggersRaw, err := stmtTriggers.QueryNeo(map[string]interface{}{
-		"run":       run,
-		"condition": condition,
+		"run": run,
 	})
 	if err != nil {
 		return nil, err
@@ -245,7 +244,7 @@ func (n *Neo4J) findTriggerEvents(run uint, condition string) (map[*fi.Rule][]*G
 			return nil, err
 		} else if err == nil {
 
-			// Type-assert the three nodes into well-defined struct.
+			// Type-assert the nodes into well-defined struct.
 			agg := trigger[0].(graph.Node)
 			goal := trigger[1].(graph.Node)
 			rule := trigger[2].(graph.Node)
@@ -300,6 +299,87 @@ func (n *Neo4J) findTriggerEvents(run uint, condition string) (map[*fi.Rule][]*G
 	return triggers, nil
 }
 
+// findPostTriggers extracts the trigger events
+// that mark the transition from the postcondition
+// turning from false to true.
+func (n *Neo4J) findPostTriggers(run uint) (map[*fi.Goal][]*fi.Rule, error) {
+
+	// Query postcondition provenance of specified run
+	// for pairs of trigger goal and trigger rule.
+	stmtTriggers, err := n.Conn1.PrepareNeo(`
+		MATCH (g:Goal {run: {run}, condition: "post", condition_holds: true})-[*1]->(r:Rule {run: {run}, condition: "post"})
+		WHERE (:Rule {run: {run}, condition: "post"})-[*1]->(g)-[*1]->(r)-[*1]->(:Goal {run: {run}, condition: "post", condition_holds: false})-[*1]->(:Rule {run: {run}, condition: "post"})
+		RETURN g AS goal, r AS rule;
+    `)
+	if err != nil {
+		return nil, err
+	}
+
+	triggersRaw, err := stmtTriggers.QueryNeo(map[string]interface{}{
+		"run": run,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Prepare a map indexed by trigger goal,
+	// collecting all trigger rules.
+	triggers := make(map[*fi.Goal][]*fi.Rule)
+
+	for err == nil {
+
+		var trigger []interface{}
+
+		trigger, _, err = triggersRaw.NextNeo()
+		if err != nil && err != io.EOF {
+			return nil, err
+		} else if err == nil {
+
+			// Type-assert the nodes into well-defined struct.
+			goal := trigger[0].(graph.Node)
+			rule := trigger[1].(graph.Node)
+
+			// Parse parts that make up label of goal.
+			goalLabel := strings.TrimLeft(goal.Properties["label"].(string), goal.Properties["table"].(string))
+			goalLabel = strings.Trim(goalLabel, "()")
+			goalLabelParts := strings.Split(goalLabel, ", ")
+
+			g := &fi.Goal{
+				ID:        goal.Properties["id"].(string),
+				Label:     goal.Properties["label"].(string),
+				Table:     goal.Properties["table"].(string),
+				Time:      goal.Properties["time"].(string),
+				CondHolds: goal.Properties["condition_holds"].(bool),
+				Receiver:  goalLabelParts[0],
+			}
+
+			if len(triggers[g]) < 1 {
+				triggers[g] = make([]*fi.Rule, 0, 3)
+			}
+
+			// Insert rule into slice indexed by goal.
+			triggers[g] = append(triggers[g], &fi.Rule{
+				ID:    rule.Properties["id"].(string),
+				Label: rule.Properties["label"].(string),
+				Table: rule.Properties["table"].(string),
+				Type:  rule.Properties["type"].(string),
+			})
+		}
+	}
+
+	err = triggersRaw.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	err = stmtTriggers.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return triggers, nil
+}
+
 // GenerateCorrections extracts the triggering events required
 // to achieve pre- and postcondition in the first (successful)
 // run. We use this information in case the fault injector was
@@ -312,38 +392,16 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 	// Recs will contain our top-level recommendations.
 	recs := make([]string, 0, 6)
 
-	// Extract the precondition trigger event chains:
-	// aggregation rule -> trigger goals -> trigger rules.
-	preTriggers, err := n.findTriggerEvents(0, "pre")
+	// Extract the precondition trigger event chains.
+	preTriggers, err := n.findPreTriggers(0)
 	if err != nil {
 		return nil, err
 	}
 
-	// Extract the postcondition trigger event chains:
-	// aggregation rule -> trigger goals -> trigger rules.
-	postTriggers, err := n.findTriggerEvents(0, "post")
+	// Extract the postcondition trigger event chains.
+	postTriggers, err := n.findPostTriggers(0)
 	if err != nil {
 		return nil, err
-	}
-
-	// Create string representations of the trigger rules
-	// for establishing the postcondition.
-	postTriggerRules := make([]string, len(postTriggers))
-
-	for agg := range postTriggers {
-
-		u := 0
-
-		for i := range postTriggers[agg] {
-
-			if postTriggerRules[u] == "" {
-				postTriggerRules[u] = fmt.Sprintf("%s(...)", postTriggers[agg][i].Rule.Table)
-			} else {
-				postTriggerRules[u] = fmt.Sprintf("%s, %s(...)", postTriggerRules[u], postTriggers[agg][i].Rule.Table)
-			}
-		}
-
-		u++
 	}
 
 	recs = append(recs, "A fault occurred. Let's try making the protocol correct first. Change:")
@@ -365,9 +423,9 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 			if !considered[preTriggers[preAgg][i].Rule.Table] {
 
 				if preTriggerRules[preAgg.Table] == "" {
-					preTriggerRules[preAgg.Table] = fmt.Sprintf("%s(...) := %s(...)", preAgg.Table, preTriggers[preAgg][i].Rule.Table)
+					preTriggerRules[preAgg.Table] = fmt.Sprintf("%s(%s, ...) :- %s(%s, ...)", preAgg.Table, preTriggers[preAgg][i].Goal.Receiver, preTriggers[preAgg][i].Rule.Table, preTriggers[preAgg][i].Goal.Receiver)
 				} else {
-					preTriggerRules[preAgg.Table] = fmt.Sprintf("%s, %s(...)", preTriggerRules[preAgg.Table], preTriggers[preAgg][i].Rule.Table)
+					preTriggerRules[preAgg.Table] = fmt.Sprintf("%s, %s(%s, ...)", preTriggerRules[preAgg.Table], preTriggers[preAgg][i].Rule.Table, preTriggers[preAgg][i].Goal.Receiver)
 				}
 
 				// After inclusion, mark trigger rule as considered.
@@ -378,12 +436,19 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 		// Build the correction suggestion rule.
 		aggNew := preTriggerRules[preAgg.Table]
 
-		for postAgg := range postTriggers {
+		for postGoal := range postTriggers {
 
-			for i := range postTriggers[postAgg] {
+			for i := range postTriggers[postGoal] {
 
-				if !considered[postTriggers[postAgg][i].Rule.Table] {
-					aggNew = fmt.Sprintf("%s, %s(...)", aggNew, postTriggers[postAgg][i].Rule.Table)
+				if postGoal.Receiver == preTriggers[preAgg][0].Goal.Receiver {
+					aggNew = fmt.Sprintf("%s, %s(%s, ...)", aggNew, postTriggers[postGoal][i].Table, postGoal.Receiver)
+				} else {
+
+					// There is network communication required.
+					// Tell to system designers.
+					recs = append(recs, fmt.Sprintf("<code>%s</code> needs to know that <code>%s</code> has executed <code>%s</code>. Add:<br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>ack_%s(%s, ...)@async :- %s(%s, ...), ...;</code>", preTriggers[preAgg][0].Goal.Receiver, postGoal.Receiver, postTriggers[postGoal][i].Table, postTriggers[postGoal][i].Table, preTriggers[preAgg][0].Goal.Receiver, postTriggers[postGoal][i].Table, postGoal.Receiver))
+
+					aggNew = fmt.Sprintf("%s, ack_%s(%s, ...)", aggNew, postTriggers[postGoal][i].Table, preTriggers[preAgg][0].Goal.Receiver)
 				}
 			}
 		}
@@ -484,7 +549,7 @@ func (n *Neo4J) GenerateCorrectionsOld(failedRuns []uint, msgs [][]*fi.Message) 
 
 							// If so, add a suggestion for an internal
 							// acknowledgement round to pre async receiver.
-							corrections = append(corrections, fmt.Sprintf("<span style = \"font-weight: bold;\">Suggestion:</span> <code>%s</code> needs to know that <code>%s</code> received <code>%s</code>.<br /> &nbsp; &nbsp; &nbsp; &nbsp; Add internal acknowledgement: <code>%s@async :- %s(node, ...)</code> @ <code>%s</code>;", preAsyncs[j].Goal.Sender, diffAsyncs[d].Goal.Receiver, diffAsyncs[d].Goal.Label, intAckRule, diffAsyncs[d].Rule.Label, diffAsyncs[d].Goal.Time))
+							corrections = append(corrections, fmt.Sprintf("<span style = \"font-weight: bold;\">Suggestion:</span> <code>%s</code> needs to know that <code>%s</code> received <code>%s</code>.<br /> &nbsp; &nbsp; &nbsp; &nbsp; Add internal acknowledgement: <code>%s@async :- %s(node, ...)</code> @ <code>%s</code>;", preAsyncs[j].Goal.Sender, diffAsyncs[d].Goal.Receiver, diffAsyncs[d].Goal.Label, intAckRule, diffAsyncs[d].Rule.Table, diffAsyncs[d].Goal.Time))
 
 							// Add intermediate ack to dependencies.
 							updDeps[diffAsyncs[d].Rule.Label] = Dependency{
