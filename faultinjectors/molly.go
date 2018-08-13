@@ -33,20 +33,6 @@ func (m *Molly) LoadOutput() error {
 	// Load pre- and post-provenance for each iteration.
 	for i := range m.Runs {
 
-		// Create lookup map for when the
-		// precondition holds in this run.
-		m.Runs[i].TimePreHolds = make(map[string]bool)
-		for _, table := range m.Runs[i].Model.Tables["pre"] {
-			m.Runs[i].TimePreHolds[table[(len(table)-1)]] = true
-		}
-
-		// Create lookup map for when the
-		// postcondition holds in this run.
-		m.Runs[i].TimePostHolds = make(map[string]bool)
-		for _, table := range m.Runs[i].Model.Tables["post"] {
-			m.Runs[i].TimePostHolds[table[(len(table)-1)]] = true
-		}
-
 		// Note return status of fault injection
 		// run in separate structure.
 		m.RunsIters[i] = m.Runs[i].Iteration
@@ -91,19 +77,13 @@ func (m *Molly) LoadOutput() error {
 			// Prefix goals with "pre_".
 			m.Runs[i].PreProv.Goals[j].ID = fmt.Sprintf("run_%d_pre_%s", m.Runs[i].Iteration, m.Runs[i].PreProv.Goals[j].ID)
 
-			// Set flag if goal falls into time during
-			// execution where precondition holds.
-			_, holds := m.Runs[i].TimePreHolds[m.Runs[i].PreProv.Goals[j].Time]
-			if holds {
-				m.Runs[i].PreProv.Goals[j].CondHolds = true
-			} else {
-				m.Runs[i].PreProv.Goals[j].CondHolds = false
-			}
+			// Tentative mark as precondition not yet achieved
+			// until we can do graph operations on this provenance.
+			m.Runs[i].PreProv.Goals[j].CondHolds = false
 		}
 
+		// Prefix rules with "pre_".
 		for j := range m.Runs[i].PreProv.Rules {
-
-			// Prefix rules with "pre_".
 			m.Runs[i].PreProv.Rules[j].ID = fmt.Sprintf("run_%d_pre_%s", m.Runs[i].Iteration, m.Runs[i].PreProv.Rules[j].ID)
 		}
 
@@ -145,19 +125,13 @@ func (m *Molly) LoadOutput() error {
 			// Prefix goals with "post_".
 			m.Runs[i].PostProv.Goals[j].ID = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Goals[j].ID)
 
-			// Set flag if goal falls into time during
-			// execution where postcondition holds.
-			_, holds := m.Runs[i].TimePostHolds[m.Runs[i].PostProv.Goals[j].Time]
-			if holds {
-				m.Runs[i].PostProv.Goals[j].CondHolds = true
-			} else {
-				m.Runs[i].PostProv.Goals[j].CondHolds = false
-			}
+			// Tentative mark as postcondition not yet achieved
+			// until we can do graph operations on this provenance.
+			m.Runs[i].PostProv.Goals[j].CondHolds = false
 		}
 
+		// Prefix rules with "post_".
 		for j := range m.Runs[i].PostProv.Rules {
-
-			// Prefix rules with "post_".
 			m.Runs[i].PostProv.Rules[j].ID = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Rules[j].ID)
 		}
 

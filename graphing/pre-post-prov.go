@@ -212,10 +212,41 @@ func (n *Neo4J) loadProv(iteration uint, provCond string, provData *fi.ProvData)
 	return nil
 }
 
-// LoadNaiveProv
-func (n *Neo4J) LoadNaiveProv() error {
+// markConditionHolds walks the provenance graph of
+// specified run and condition and marks goals depending
+// on whether the specified condition holds.
+func (n *Neo4J) markConditionHolds(iteration uint, provCond string) error {
 
-	fmt.Printf("Loading provenance data (naive approach)...\n")
+	stmtMarkCond, err := n.Conn1.PrepareNeo(`
+		MATCH (g:Goal {run: {run}, condition: {condition}})-[*1]->(r:Rule {run: {run}, condition: {condition}})
+		WHERE (:Goal {run: {run}, condition: {condition}, table: {condition}})-[*1]->(:Rule {run: {run}, condition: {condition}, table: {condition}})-[*1]->(g) AND NOT ()-->(:Goal {run: {run}, condition: {condition}, table: {condition}})-[*1]->(:Rule {run: {run}, condition: {condition}, table: {condition}})-[*1]->(g)
+		WITH g.table AS rule
+
+		MATCH (n:Goal {run: {run}, condition: {condition}})
+		WHERE n.table = {condition} OR n.table = rule
+		SET n.condition_holds = true
+	`)
+
+	_, err = stmtMarkCond.ExecNeo(map[string]interface{}{
+		"run":       iteration,
+		"condition": provCond,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = stmtMarkCond.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// LoadRawProvenance
+func (n *Neo4J) LoadRawProvenance() error {
+
+	fmt.Printf("Loading raw provenance data...\n")
 
 	for i := range n.Runs {
 
@@ -227,6 +258,12 @@ func (n *Neo4J) LoadNaiveProv() error {
 		}
 		fmt.Printf("done\n")
 
+		// Taint goals for which the precondition holds.
+		err = n.markConditionHolds(n.Runs[i].Iteration, "pre")
+		if err != nil {
+			return err
+		}
+
 		// Load postcondition provenance.
 		fmt.Printf("\t[%d] Postcondition provenance... ", n.Runs[i].Iteration)
 		err = n.loadProv(n.Runs[i].Iteration, "post", n.Runs[i].PostProv)
@@ -234,6 +271,12 @@ func (n *Neo4J) LoadNaiveProv() error {
 			return err
 		}
 		fmt.Printf("done\n")
+
+		// Taint goals for which the postcondition holds.
+		err = n.markConditionHolds(n.Runs[i].Iteration, "post")
+		if err != nil {
+			return err
+		}
 	}
 
 	fmt.Println()

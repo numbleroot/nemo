@@ -33,7 +33,7 @@ type FaultInjector interface {
 type GraphDatabase interface {
 	InitGraphDB(string, []*fi.Run) error
 	CloseDB() error
-	LoadNaiveProv() error
+	LoadRawProvenance() error
 	PreprocessProv([]uint) error
 	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
 	CreatePrototypes([]uint, []uint) ([]string, [][]string, []string, [][]string, error)
@@ -123,7 +123,7 @@ func main() {
 
 	// Load initial (naive) version of provenance
 	// graphs for pre- and postcondition.
-	err = debugRun.graphDB.LoadNaiveProv()
+	err = debugRun.graphDB.LoadRawProvenance()
 	if err != nil {
 		log.Fatalf("Failed to import provenance (naive) into graph database: %v", err)
 	}
