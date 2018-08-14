@@ -44,6 +44,84 @@
 
             <div class = "card">
 
+                <div id = "pre-post-correctness" class = "card-header">
+
+                    <h5 class = "mb-0">
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseCorrections" aria-expanded = "false" aria-controls = "collapseCorrections">Specification Provenance (Pre <i class = "fas fa-long-arrow-alt-right"></i> Post)</button>
+                    </h5>
+
+                </div>
+
+                <div id = "collapseCorrections" class = "collapse" aria-labelledby = "pre-post-correctness">
+
+                    <div class = "card-body">
+
+                        <span class = "help-block">Can we suggest modifications to precondition events that make the precondition stricter?</span>
+
+                        <ul id = "pre-post-correctness-corrections"></ul>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class = "card">
+
+                <div id = "diff-prov" class = "card-header">
+
+                    <h5 class = "mb-0">
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseDiffProv" aria-expanded = "false" aria-controls = "collapseDiffProv">Differential Provenance = Good - Bad</button>
+                    </h5>
+
+                </div>
+
+                <div id = "collapseDiffProv" class = "collapse" aria-labelledby = "diff-prov">
+
+                    <div class = "card-body">
+
+                        <span class = "help-block">Which events are missing from the bad execution compared to the good one? Frontier elements are bordered <span style = "color: #c71585;">dashed red</span>.</span>
+
+                        <div id = "diff-prov-missing-list">
+
+                            <h6>Rule &nbsp;<code id = "diff-prov-missing-rule"></code>&nbsp; needs to fire to achieve success, but the following events are not taking place:</h6>
+                            <ul id = "diff-prov-missing-goals"></ul>
+
+                        </div>
+
+                        <div class = "row anchor">
+
+                            <div class = "diff-prov-checker">
+
+                                <div>
+                                    <input type = "checkbox" id = "diff-prov-check-good" name = "diff-prov-check-good" value = "good" />
+                                    <label for = "diff-prov-check-good">Good</label>
+                                </div>
+
+                                <div>
+                                    <input type = "checkbox" id = "diff-prov-check-bad" name = "diff-prov-check-bad" value = "bad" />
+                                    <label for = "diff-prov-check-bad">Bad</label>
+                                </div>
+
+                                <div>
+                                    <input type = "checkbox" id = "diff-prov-check-diff" name = "diff-prov-check-diff" value = "diff" checked = "checked" />
+                                    <label for = "diff-prov-check-diff">Difference</label>
+                                </div>
+
+                            </div>
+
+                            <div id = "good-bad-diff-prov"></div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class = "card">
+
                 <div id = "hazard" class = "card-header">
 
                     <h5 class = "mb-0">
@@ -114,7 +192,7 @@
                 <div id = "cleaned-pre-post-prov" class = "card-header">
 
                     <h5 class = "mb-0">
-                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseProcessedPrePost" aria-expanded = "false" aria-controls = "collapseProcessedPrePost">Preprocessed Pre- and Postcondition Provenance</button>
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseProcessedPrePost" aria-expanded = "false" aria-controls = "collapseProcessedPrePost">Cleaned-up Pre- and Postcondition Provenance</button>
                     </h5>
 
                 </div>
@@ -130,7 +208,7 @@
 
                             <div class = "col-md">
 
-                                <h4>Preprocessed Pre</h4>
+                                <h4>Cleaned-up Pre</h4>
 
                                 <div id = "cleaned-pre-prov"></div>
 
@@ -138,37 +216,13 @@
 
                             <div class = "col-md">
 
-                                <h4>Preprocessed Post</h4>
+                                <h4>Cleaned-up Post</h4>
 
                                 <div id = "cleaned-post-prov"></div>
 
                             </div>
 
                         </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class = "card">
-
-                <div id = "pre-post-correctness" class = "card-header">
-
-                    <h5 class = "mb-0">
-                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseCorrections" aria-expanded = "false" aria-controls = "collapseCorrections">Specification Provenance (Pre <i class = "fas fa-long-arrow-alt-right"></i> Post)</button>
-                    </h5>
-
-                </div>
-
-                <div id = "collapseCorrections" class = "collapse" aria-labelledby = "pre-post-correctness">
-
-                    <div class = "card-body">
-
-                        <span class = "help-block">Can we suggest modifications to precondition events that make the precondition stricter?</span>
-
-                        <ul id = "pre-post-correctness-corrections"></ul>
 
                     </div>
 
@@ -243,60 +297,6 @@
                                 <ul id = "union-proto-prov-missing"></ul>
 
                             </div>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class = "card">
-
-                <div id = "diff-prov" class = "card-header">
-
-                    <h5 class = "mb-0">
-                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseDiffProv" aria-expanded = "false" aria-controls = "collapseDiffProv">Good - Bad = Differential</button>
-                    </h5>
-
-                </div>
-
-                <div id = "collapseDiffProv" class = "collapse" aria-labelledby = "diff-prov">
-
-                    <div class = "card-body">
-
-                        <span class = "help-block">Which events are missing from the bad execution compared to the good one? Frontier elements are bordered <span style = "color: #c71585;">dashed red</span>.</span>
-
-                        <div id = "diff-prov-missing-list">
-
-                            <h6>Rule &nbsp;<code id = "diff-prov-missing-rule"></code>&nbsp; needs to fire to achieve success, but the following events are not taking place:</h6>
-                            <ul id = "diff-prov-missing-goals"></ul>
-
-                        </div>
-
-                        <div class = "row anchor">
-
-                            <div class = "diff-prov-checker">
-
-                                <div>
-                                    <input type = "checkbox" id = "diff-prov-check-good" name = "diff-prov-check-good" value = "good" />
-                                    <label for = "diff-prov-check-good">Good</label>
-                                </div>
-
-                                <div>
-                                    <input type = "checkbox" id = "diff-prov-check-bad" name = "diff-prov-check-bad" value = "bad" />
-                                    <label for = "diff-prov-check-bad">Bad</label>
-                                </div>
-
-                                <div>
-                                    <input type = "checkbox" id = "diff-prov-check-diff" name = "diff-prov-check-diff" value = "diff" checked = "checked" />
-                                    <label for = "diff-prov-check-diff">Difference</label>
-                                </div>
-
-                            </div>
-
-                            <div id = "good-bad-diff-prov"></div>
 
                         </div>
 

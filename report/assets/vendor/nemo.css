@@ -19,6 +19,7 @@ body pre, body code { font-size: 100%; }
 }
 
 #runs-table { width: 100%; }
+#recommendation li { margin: 0 0 10px; }
 
 #recommendation pre {
     display: inline;
