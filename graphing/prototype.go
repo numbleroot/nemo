@@ -19,7 +19,7 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 		WITH reduce(output = [], node IN nodes | output + node) AS nodes
 		WITH filter(node IN nodes WHERE exists(node.type)) AS rules
 		UNWIND rules AS rule
-		WITH collect(DISTINCT rule.label) AS rules
+		WITH collect(DISTINCT rule.table) AS rules
 		RETURN rules;
     `)
 	if err != nil {
@@ -142,7 +142,7 @@ func (n *Neo4J) missingFrom(proto []string, failedIter uint, condition string) (
 
 	stmtMissRules, err := n.Conn1.PrepareNeo(`
 		MATCH (r:Rule {run: {run}, condition: {condition}})
-		WITH collect(DISTINCT r.label) AS rules
+		WITH collect(DISTINCT r.table) AS rules
 		RETURN rules;
     `)
 	if err != nil {

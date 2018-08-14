@@ -33,6 +33,20 @@ func (m *Molly) LoadOutput() error {
 	// Load pre- and post-provenance for each iteration.
 	for i := range m.Runs {
 
+		// Create lookup map for when the
+		// precondition holds in this run.
+		m.Runs[i].TimePreHolds = make(map[string]bool)
+		for _, table := range m.Runs[i].Model.Tables["pre"] {
+			m.Runs[i].TimePreHolds[table[(len(table)-1)]] = true
+		}
+
+		// Create lookup map for when the
+		// postcondition holds in this run.
+		m.Runs[i].TimePostHolds = make(map[string]bool)
+		for _, table := range m.Runs[i].Model.Tables["post"] {
+			m.Runs[i].TimePostHolds[table[(len(table)-1)]] = true
+		}
+
 		// Note return status of fault injection
 		// run in separate structure.
 		m.RunsIters[i] = m.Runs[i].Iteration

@@ -203,12 +203,13 @@ func main() {
 			// run to establish the precondition, it might be a good
 			// idea for the system designers to make sure these rules
 			// are maximum fault-tolerant.
-			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "All good! No invariant violated. It might make sense to verify the fault tolerance of the following rules, though:")
+			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "Good job, no invariant violation. At least one run did not establish the precondition, though. Maybe double-check the fault tolerance of the following rules:")
+			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, extensions...)
 
 		} else {
 
 			// No invariant violation happened, no more fault tolerance to add.
-			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "All good! No faults, no missing fault tolerance. Well done!")
+			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "Well done! No faults, no missing fault tolerance.")
 
 		}
 
