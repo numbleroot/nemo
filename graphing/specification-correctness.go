@@ -477,6 +477,19 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 					aggNew = fmt.Sprintf("%s, ack_%s(%s, sender=%s, ...)", aggNew, postRule, preNode, postNode)
 				}
 			}
+
+			for i := range preTriggers[preAgg] {
+
+				if preTriggers[preAgg][i].Rule.Type != "next" {
+
+					rule := preTriggers[preAgg][i].Rule.Table
+					node := preTriggers[preAgg][i].Goal.Receiver
+
+					recs = append(recs, fmt.Sprintf("Precondition depends on timing of an onetime event. Make it persistent. Add:<br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>buffer_%s(%s, ...) :- %s(%s, ...), ...;</code><br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>buffer_%s(%s, ...)@next :- buffer_%s(%s, ...), ...;", rule, node, rule, node, rule, node, rule, node))
+
+					aggNew = strings.Replace(aggNew, fmt.Sprintf("%s(%s, ...)", rule, node), fmt.Sprintf("buffer_%s(%s, ...)", rule, node), -1)
+				}
+			}
 		}
 
 		// Append our recommendation.
