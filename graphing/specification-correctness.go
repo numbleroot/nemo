@@ -404,57 +404,83 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 		return nil, err
 	}
 
-	recs = append(recs, "A fault occurred. Let's try making the protocol correct first. Change:")
+	recs = append(recs, "A fault occurred. Let's try making the protocol correct first.")
 
 	// Prepare slice of strings representing the
 	// compound of trigger rules required for firing
 	// the respective aggregation rule.
 	preTriggerRules := make(map[string]string)
 
+	// Track per pre-rule if the nodes involved on
+	// both sides, pre and post, differ. If so, we
+	// have to take extra steps.
+	differentNodes := make(map[string]map[string][]*fi.Goal)
+
 	for preAgg := range preTriggers {
 
-		// Track which rules we already considered for
-		// this aggregation rule.
-		considered := make(map[string]bool)
+		differentNodes[preAgg.Table] = make(map[string][]*fi.Goal)
 
 		for i := range preTriggers[preAgg] {
 
-			// Only add next rule if we have not yet considered it.
-			if !considered[preTriggers[preAgg][i].Rule.Table] {
+			if preTriggerRules[preAgg.Table] == "" {
+				preTriggerRules[preAgg.Table] = fmt.Sprintf("%s(%s, ...) :- %s(%s, ...)", preAgg.Table, preTriggers[preAgg][i].Goal.Receiver, preTriggers[preAgg][i].Rule.Table, preTriggers[preAgg][i].Goal.Receiver)
+			} else {
+				preTriggerRules[preAgg.Table] = fmt.Sprintf("%s, %s(%s, ...)", preTriggerRules[preAgg.Table], preTriggers[preAgg][i].Rule.Table, preTriggers[preAgg][i].Goal.Receiver)
+			}
+		}
+	}
 
-				if preTriggerRules[preAgg.Table] == "" {
-					preTriggerRules[preAgg.Table] = fmt.Sprintf("%s(%s, ...) :- %s(%s, ...)", preAgg.Table, preTriggers[preAgg][i].Goal.Receiver, preTriggers[preAgg][i].Rule.Table, preTriggers[preAgg][i].Goal.Receiver)
-				} else {
-					preTriggerRules[preAgg.Table] = fmt.Sprintf("%s, %s(%s, ...)", preTriggerRules[preAgg.Table], preTriggers[preAgg][i].Rule.Table, preTriggers[preAgg][i].Goal.Receiver)
+	for preAgg := range preTriggers {
+
+		for i := range preTriggers[preAgg] {
+
+			for postGoal := range postTriggers {
+
+				if preTriggers[preAgg][i].Goal.Receiver != postGoal.Receiver {
+
+					if differentNodes[preAgg.Table][preTriggers[preAgg][i].Goal.Receiver] == nil {
+						differentNodes[preAgg.Table][preTriggers[preAgg][i].Goal.Receiver] = make([]*fi.Goal, 0, 3)
+					}
+
+					differentNodes[preAgg.Table][preTriggers[preAgg][i].Goal.Receiver] = append(differentNodes[preAgg.Table][preTriggers[preAgg][i].Goal.Receiver], postGoal)
 				}
-
-				// After inclusion, mark trigger rule as considered.
-				considered[preTriggers[preAgg][i].Rule.Table] = true
 			}
 		}
 
-		// Build the correction suggestion rule.
 		aggNew := preTriggerRules[preAgg.Table]
 
-		for postGoal := range postTriggers {
+		if len(differentNodes[preAgg.Table]) == 0 {
 
-			for i := range postTriggers[postGoal] {
+			// The involved nodes for this precondition
+			// rule and all postcondition rules to add are
+			// the same ones. Thus, local order suffices.
 
-				if postGoal.Receiver == preTriggers[preAgg][0].Goal.Receiver {
-					aggNew = fmt.Sprintf("%s, %s(%s, ...)", aggNew, postTriggers[postGoal][i].Table, postGoal.Receiver)
-				} else {
+			for postGoal := range postTriggers {
+				aggNew = fmt.Sprintf("%s, %s(%s, ...)", aggNew, postGoal.Table, postGoal.Receiver)
+			}
+		} else {
 
-					// There is network communication required.
-					// Tell to system designers.
-					recs = append(recs, fmt.Sprintf("<code>%s</code> needs to know that <code>%s</code> has executed <code>%s</code>. Add:<br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>ack_%s(%s, ...)@async :- %s(%s, ...), ...;</code>", preTriggers[preAgg][0].Goal.Receiver, postGoal.Receiver, postTriggers[postGoal][i].Table, postTriggers[postGoal][i].Table, preTriggers[preAgg][0].Goal.Receiver, postTriggers[postGoal][i].Table, postGoal.Receiver))
+			// At least one goal on the postcondition side
+			// takes place on a different node than this
+			// precondition's goal. We need communication.
 
-					aggNew = fmt.Sprintf("%s, ack_%s(%s, ...)", aggNew, postTriggers[postGoal][i].Table, preTriggers[preAgg][0].Goal.Receiver)
+			for pre := range differentNodes[preAgg.Table] {
+
+				for post := range differentNodes[preAgg.Table][pre] {
+
+					preNode := pre
+					postNode := differentNodes[preAgg.Table][pre][post].Receiver
+					postRule := differentNodes[preAgg.Table][pre][post].Table
+
+					recs = append(recs, fmt.Sprintf("<code>%s</code> needs to know that <code>%s</code> has executed <code>%s</code>. Add:<br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>ack_%s(%s, ...)@async :- %s(%s, ...), ...;</code>", preNode, postNode, postRule, postRule, preNode, postRule, postNode))
+
+					aggNew = fmt.Sprintf("%s, ack_%s(%s, sender=%s, ...)", aggNew, postRule, preNode, postNode)
 				}
 			}
 		}
 
 		// Append our recommendation.
-		recs = append(recs, fmt.Sprintf("<code>%s;</code> &nbsp; <i class = \"fas fa-long-arrow-alt-right\"></i> &nbsp; <code>%s;</code>", preTriggerRules[preAgg.Table], aggNew))
+		recs = append(recs, fmt.Sprintf("Change: <code>%s;</code> &nbsp; <i class = \"fas fa-long-arrow-alt-right\"></i> &nbsp; <code>%s;</code>", preTriggerRules[preAgg.Table], aggNew))
 	}
 
 	return recs, nil
