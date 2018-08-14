@@ -140,6 +140,9 @@ func (m *Molly) LoadOutput() error {
 			m.Runs[i].PostProv.Edges[j].From = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Edges[j].From)
 			m.Runs[i].PostProv.Edges[j].To = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Edges[j].To)
 		}
+
+		// Prepare slice for recommendations.
+		m.Runs[i].Recommendation = make([]string, 0, 5)
 	}
 
 	return nil

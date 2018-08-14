@@ -15,11 +15,12 @@ func (n *Neo4J) cleanCopyProv(iter uint, condition string) error {
 	newID := 1000 + iter
 
 	exportQuery := `CALL apoc.export.cypher.query("
-	MATCH path = (g1:Goal {run: ###RUN###, condition: '###CONDITION###'})-[*0..]->(g2:Goal {run: ###RUN###, condition: '###CONDITION###'})
-	RETURN path;
-	", "/tmp/clean-prov", {format: "cypher-shell", cypherFormat: "create"})
-	YIELD time
-	RETURN time;`
+		MATCH path = (g1:Goal {run: ###RUN###, condition: '###CONDITION###'})-[*0..]->(g2:Goal {run: ###RUN###, condition: '###CONDITION###'})
+		RETURN path;
+		", "/tmp/clean-prov", {format: "cypher-shell", cypherFormat: "create"})
+		YIELD time
+		RETURN time;
+	`
 
 	exportQuery = strings.Replace(exportQuery, "###RUN###", fmt.Sprintf("%d", iter), -1)
 	exportQuery = strings.Replace(exportQuery, "###CONDITION###", condition, -1)
@@ -67,13 +68,13 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 	run := (1000 + iter)
 
 	stmtCollapseNext, err := n.Conn2.PrepareNeo(`
-	MATCH path = (r1:Rule {run: {run}, condition: {condition}, type: "next"})-[*1..]->(g:Goal {run: {run}, condition: {condition}})-[*1..]->(r2:Rule {run: {run}, condition: {condition}, type: "next"})
-	WHERE all(node IN nodes(path) WHERE node.type = "next" OR not(exists(node.type)))
-	WITH path, nodes(path) AS nodesRaw, length(path) AS len
-	UNWIND nodesRaw AS node
-	WITH path, collect(ID(node)) AS nodes, len
-	RETURN path, nodes
-	ORDER BY len DESC;
+		MATCH path = (r1:Rule {run: {run}, condition: {condition}, type: "next"})-[*1..]->(g:Goal {run: {run}, condition: {condition}})-[*1..]->(r2:Rule {run: {run}, condition: {condition}, type: "next"})
+		WHERE all(node IN nodes(path) WHERE node.type = "next" OR not(exists(node.type)))
+		WITH path, nodes(path) AS nodesRaw, length(path) AS len
+		UNWIND nodesRaw AS node
+		WITH path, collect(ID(node)) AS nodes, len
+		RETURN path, nodes
+		ORDER BY len DESC;
 	`)
 	if err != nil {
 		return err
@@ -143,10 +144,10 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 
 	// Find predecessor relations to chain.
 	stmtPred, err := n.Conn1.PrepareNeo(`
-	MATCH (pred:Goal {run: {run}, condition: {condition}})-[*1]->(root:Rule {run: {run}, condition: {condition}})
-	WHERE ID(root) = {rootID}
-	WITH collect(ID(pred)) AS preds
-	RETURN preds;
+		MATCH (pred:Goal {run: {run}, condition: {condition}})-[*1]->(root:Rule {run: {run}, condition: {condition}})
+		WHERE ID(root) = {rootID}
+		WITH collect(ID(pred)) AS preds
+		RETURN preds;
 	`)
 	if err != nil {
 		return err
@@ -195,10 +196,10 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 
 	// Find all "outwards" relations of chain.
 	stmtSucc, err := n.Conn2.PrepareNeo(`
-	MATCH (leaf:Rule {run: {run}, condition: {condition}})-[*1]->(succ:Goal {run: {run}, condition: {condition}})
-	WHERE ID(leaf) = {leafID}
-	WITH collect(ID(succ)) AS succs
-	RETURN succs;
+		MATCH (leaf:Rule {run: {run}, condition: {condition}})-[*1]->(succ:Goal {run: {run}, condition: {condition}})
+		WHERE ID(leaf) = {leafID}
+		WITH collect(ID(succ)) AS succs
+		RETURN succs;
 	`)
 	if err != nil {
 		return err
@@ -290,10 +291,10 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 		// Connect newly created collapsed next node with
 		// predecessors and successors.
 		addPredsSuccsQuery := `
-		MATCH (pred:Goal {run: ###RUN###, condition: "###CONDITION###"}), (coll:Rule {run: ###RUN###, condition: "###CONDITION###", id: "###ID###", type: "collapsed"}), (succ:Goal {run: ###RUN###, condition: "###CONDITION###"})
-		WHERE ID(pred) IN ###PRED_IDs### AND ID(succ) IN ###SUCC_IDs###
-		MERGE (pred)-[:DUETO]->(coll)
-		MERGE (coll)-[:DUETO]->(succ);
+			MATCH (pred:Goal {run: ###RUN###, condition: "###CONDITION###"}), (coll:Rule {run: ###RUN###, condition: "###CONDITION###", id: "###ID###", type: "collapsed"}), (succ:Goal {run: ###RUN###, condition: "###CONDITION###"})
+			WHERE ID(pred) IN ###PRED_IDs### AND ID(succ) IN ###SUCC_IDs###
+			MERGE (pred)-[:DUETO]->(coll)
+			MERGE (coll)-[:DUETO]->(succ);
 		`
 		addPredsSuccsQuery = strings.Replace(addPredsSuccsQuery, "###RUN###", fmt.Sprintf("%d", run), -1)
 		addPredsSuccsQuery = strings.Replace(addPredsSuccsQuery, "###CONDITION###", condition, -1)
@@ -309,12 +310,12 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 
 	// Delete extracted next chain.
 	stmtDelChainRaw := `
-	MATCH path = (r:Rule {run: {run}, condition: {condition}, type: "next"})-[*1..]->(g:Goal {run: {run}, condition: {condition}})-[*1..]->(l:Rule {run: {run}, condition: {condition}, type: "next"})
-	WHERE all(node IN nodes(path) WHERE ID(node) IN ###CHAIN_IDs###)
-	WITH path, nodes(path) AS nodes, length(path) AS len
-	ORDER BY len DESC
-	UNWIND nodes AS node
-	DETACH DELETE node;
+		MATCH path = (r:Rule {run: {run}, condition: {condition}, type: "next"})-[*1..]->(g:Goal {run: {run}, condition: {condition}})-[*1..]->(l:Rule {run: {run}, condition: {condition}, type: "next"})
+		WHERE all(node IN nodes(path) WHERE ID(node) IN ###CHAIN_IDs###)
+		WITH path, nodes(path) AS nodes, length(path) AS len
+		ORDER BY len DESC
+		UNWIND nodes AS node
+		DETACH DELETE node;
 	`
 
 	// Create string containing all IDs to delete in Cypher format.
@@ -346,26 +347,26 @@ func (n *Neo4J) collapseNextChains(iter uint, condition string) error {
 	return nil
 }
 
-// PreprocessProv
-func (n *Neo4J) PreprocessProv(iters []uint) error {
+// SimplifyProv
+func (n *Neo4J) SimplifyProv(iters []uint) error {
 
 	fmt.Printf("Preprocessing provenance graphs... ")
 
 	for i := range iters {
 
-		// Clean-copy precondition provenance (run: 1000).
+		// Clean-copy precondition provenance (run: 1000+).
 		err := n.cleanCopyProv(iters[i], "pre")
 		if err != nil {
 			return err
 		}
 
-		// Clean-copy postcondition provenance (run: 1000).
+		// Clean-copy postcondition provenance (run: 1000+).
 		err = n.cleanCopyProv(iters[i], "post")
 		if err != nil {
 			return err
 		}
 
-		// Do preprocessing over run: 1000 graphs:
+		// Do preprocessing over graphs of run 1000+:
 
 		// Collapse @next chains in precondition provenance.
 		err = n.collapseNextChains(iters[i], "pre")
@@ -378,9 +379,6 @@ func (n *Neo4J) PreprocessProv(iters []uint) error {
 		if err != nil {
 			return err
 		}
-
-		// What more?
-
 	}
 
 	fmt.Printf("done\n\n")

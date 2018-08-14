@@ -192,7 +192,7 @@
                 <div id = "cleaned-pre-post-prov" class = "card-header">
 
                     <h5 class = "mb-0">
-                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseProcessedPrePost" aria-expanded = "false" aria-controls = "collapseProcessedPrePost">Cleaned-up Pre- and Postcondition Provenance</button>
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseProcessedPrePost" aria-expanded = "false" aria-controls = "collapseProcessedPrePost">Simplified Pre- and Postcondition Provenance</button>
                     </h5>
 
                 </div>
@@ -208,7 +208,7 @@
 
                             <div class = "col-md">
 
-                                <h4>Cleaned-up Pre</h4>
+                                <h4>Simplified Pre</h4>
 
                                 <div id = "cleaned-pre-prov"></div>
 
@@ -216,7 +216,7 @@
 
                             <div class = "col-md">
 
-                                <h4>Cleaned-up Post</h4>
+                                <h4>Simplified Post</h4>
 
                                 <div id = "cleaned-post-prov"></div>
 
@@ -470,7 +470,7 @@
 
                     newRun.missingEvents.forEach(function(m) {
 
-                        d3.select("#diff-prov-missing-list").append("h6").html("Rule <code>" + m.Rule.label + "</code> needs to fire to achieve success, but the following events are not taking place:");
+                        d3.select("#diff-prov-missing-list").append("h6").html("Rule <code>" + m.Rule.table + "</code> needs to fire to achieve success, but the following events are not taking place:");
                         d3.select("#diff-prov-missing-list").append("ul");
 
                         m.Goals.forEach(function(goal) {

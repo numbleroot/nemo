@@ -20,15 +20,16 @@ func (n *Neo4J) CreateNaiveDiffProv(symmetric bool, failedRuns []uint, successPo
 	fmt.Printf("Creating differential provenance (good - bad), naive way... ")
 
 	exportQuery := `CALL apoc.export.cypher.query("
-	MATCH (failed:Goal {run: ###RUN###, condition: 'post'})
-	WITH collect(failed.label) AS failGoals
+		MATCH (failed:Goal {run: ###RUN###, condition: 'post'})
+		WITH collect(failed.label) AS failGoals
 
-	MATCH pathSucc = (root:Goal {run: 0, condition: 'post'})-[*0..]->(goal:Goal {run: 0, condition: 'post'})
-	WHERE NOT root.label IN failGoals AND NOT goal.label IN failGoals
-	RETURN pathSucc;
-	", "/tmp/export-differential-provenance", {format: "cypher-shell", cypherFormat: "create"})
-	YIELD time
-	RETURN time;`
+		MATCH pathSucc = (root:Goal {run: 0, condition: 'post'})-[*0..]->(goal:Goal {run: 0, condition: 'post'})
+		WHERE NOT root.label IN failGoals AND NOT goal.label IN failGoals
+		RETURN pathSucc;
+		", "/tmp/export-differential-provenance", {format: "cypher-shell", cypherFormat: "create"})
+		YIELD time
+		RETURN time;
+	`
 
 	diffDots := make([]*gographviz.Graph, len(failedRuns))
 	failedDots := make([]*gographviz.Graph, len(failedRuns))
