@@ -34,12 +34,13 @@ type GraphDatabase interface {
 	InitGraphDB(string, []*fi.Run) error
 	CloseDB() error
 	LoadRawProvenance() error
-	PreprocessProv([]uint) error
+	SimplifyProv([]uint) error
 	CreateHazardAnalysis(string) ([]*gographviz.Graph, error)
 	CreatePrototypes([]uint, []uint) ([]string, [][]string, []string, [][]string, error)
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, error)
 	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]*fi.Missing, error)
 	GenerateCorrections() ([]string, error)
+	GenerateExtensions() ([]string, error)
 }
 
 // Reporter
@@ -129,7 +130,7 @@ func main() {
 
 	// Clean-up loaded provenance data and
 	// reimport in reduced versions.
-	err = debugRun.graphDB.PreprocessProv(iters)
+	err = debugRun.graphDB.SimplifyProv(iters)
 	if err != nil {
 		log.Fatalf("Could not clean-up initial provenance data: %v", err)
 	}
@@ -162,7 +163,6 @@ func main() {
 	}
 
 	var corrections []string
-
 	if len(failedIters) > 0 {
 
 		// Generate correction suggestions for moving towards correctness.
@@ -170,6 +170,13 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error while generating corrections: %v", err)
 		}
+	}
+
+	// Attempt to create extension proposals in case
+	// the precondition depends on network events.
+	extensions, err := debugRun.graphDB.GenerateExtensions()
+	if err != nil {
+		log.Fatalf("Error while generating extensions: %v", err)
 	}
 
 	// Reporting.
@@ -182,19 +189,27 @@ func main() {
 
 		// Progressively formulate one top-level recommendation
 		// for programmers to focus on first.
-		// Hierarchy:
-		//     1. If bug => suggest corrections.
-		//     2. If missing fault tolerance => suggest extensions.
-		//     3. None of both => congratulations!
 		if len(corrections) > 0 {
-			runs[iters[i]].Recommendation = make([]string, 0, 5)
+
+			// We observed an invariant violation. Suggest corrections first.
 			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "A fault occurred. Let's try making the protocol correct first.")
 			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, corrections...)
-		} else if len(missingEvents) > 0 {
-			// runs[iters[i]].Recommendation = missingEvents[0]
+
+		} else if len(extensions) > 0 {
+
+			// In case there exist runs in this execution where the
+			// precondition was not achieved (not per se a problem!)
+			// and communication had to be performed for the successful
+			// run to establish the precondition, it might be a good
+			// idea for the system designers to make sure these rules
+			// are maximum fault-tolerant.
+			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "All good! No invariant violated. It might make sense to verify the fault tolerance of the following rules, though:")
+
 		} else {
-			runs[iters[i]].Recommendation = make([]string, 0, 1)
+
+			// No invariant violation happened, no more fault tolerance to add.
 			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "All good! No faults, no missing fault tolerance. Well done!")
+
 		}
 
 		runs[iters[i]].InterProto = interProto
