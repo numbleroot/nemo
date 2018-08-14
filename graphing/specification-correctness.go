@@ -472,8 +472,12 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 					postNode := differentNodes[preAgg.Table][pre][post].Receiver
 					postRule := differentNodes[preAgg.Table][pre][post].Table
 
+					// Add the recommendation to integrate a message round
+					// so that the receiver node in pre knows about the state.
 					recs = append(recs, fmt.Sprintf("<code>%s</code> needs to know that <code>%s</code> has executed <code>%s</code>. Add:<br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>ack_%s(%s, ...)@async :- %s(%s, ...), ...;</code>", preNode, postNode, postRule, postRule, preNode, postRule, postNode))
 
+					// Also, add receipt of this message as dependency to
+					// the updated precondition trigger.
 					aggNew = fmt.Sprintf("%s, ack_%s(%s, sender=%s, ...)", aggNew, postRule, preNode, postNode)
 				}
 			}
@@ -482,17 +486,27 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 
 				if preTriggers[preAgg][i].Rule.Type != "next" {
 
+					// In case one of the rules underneath the aggregation
+					// rule right above the triggering rules for the pre-
+					// condition is not of type next (i.e., state-preserving),
+					// we need to introduce a buffering scheme so that we do
+					// not lose the state required for firing pre.
+
 					rule := preTriggers[preAgg][i].Rule.Table
 					node := preTriggers[preAgg][i].Goal.Receiver
 
+					// Add the buffer_RULE construct as a suggestion.
 					recs = append(recs, fmt.Sprintf("Precondition depends on timing of an onetime event. Make it persistent. Add:<br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>buffer_%s(%s, ...) :- %s(%s, ...), ...;</code><br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>buffer_%s(%s, ...)@next :- buffer_%s(%s, ...), ...;", rule, node, rule, node, rule, node, rule, node))
 
+					// Update the new precondition trigger dependencies
+					// by replacing the old rule with the new buffer_ rule.
 					aggNew = strings.Replace(aggNew, fmt.Sprintf("%s(%s, ...)", rule, node), fmt.Sprintf("buffer_%s(%s, ...)", rule, node), -1)
 				}
 			}
 		}
 
-		// Append our recommendation.
+		// Finally, append the updated dependency rule
+		// for firing the precondition to our recommendations.
 		recs = append(recs, fmt.Sprintf("Change: <code>%s;</code> &nbsp; <i class = \"fas fa-long-arrow-alt-right\"></i> &nbsp; <code>%s;</code>", preTriggerRules[preAgg.Table], aggNew))
 	}
 
