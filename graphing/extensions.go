@@ -3,7 +3,6 @@ package graphing
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	graph "github.com/johnnadratowski/golang-neo4j-bolt-driver/structures/graph"
 )
@@ -18,6 +17,9 @@ func (n *Neo4J) GenerateExtensions() ([]string, error) {
 
 	// Prepare slice of extensions.
 	extensions := make([]string, 0, 3)
+
+	// Prepare map for adding extensions only once per rule.
+	rulesState := make(map[string]string)
 
 	// Query for precondition achievement per run.
 	preAchievedRows, err := n.Conn1.QueryNeo(`
@@ -59,10 +61,9 @@ func (n *Neo4J) GenerateExtensions() ([]string, error) {
 		// all network events.
 
 		asyncEventsRows, err := n.Conn1.QueryNeo(`
-			MATCH (g:Goal {run: 0, condition: "pre"})-[*1]->(r:Rule {run: 0, condition: "pre", type: "async"})
-			WHERE (g.condition_holds = true AND (g)-[*1]->(r)-[*1]->(:Goal {run: 0, condition: "pre", condition_holds: false})-[*1]->(:Rule {run: 0, condition: "pre"}))
-			      OR g.condition_holds = false
-			RETURN g, r;
+			MATCH (r:Rule {run: 0, condition: "pre", type: "async"})
+			WHERE (:Goal {run: 0, condition: "pre", condition_holds: true})-[*1]->(r)-[*1]->(:Goal {run: 0, condition: "pre", condition_holds: false})-[*1]->(:Rule {run: 0, condition: "pre"}) OR (:Goal {run: 0, condition: "pre", condition_holds: false})-[*1]->(r)
+			RETURN r;
 		`, nil)
 		if err != nil {
 			return nil, err
@@ -75,16 +76,17 @@ func (n *Neo4J) GenerateExtensions() ([]string, error) {
 
 		for i := range asyncEventsRaw {
 
-			goal := asyncEventsRaw[i][0].(graph.Node)
-			rule := asyncEventsRaw[i][1].(graph.Node)
+			rule := asyncEventsRaw[i][0].(graph.Node)
 
-			// Parse parts that make up label of goal.
-			goalLabel := strings.TrimLeft(goal.Properties["label"].(string), goal.Properties["table"].(string))
-			goalLabel = strings.Trim(goalLabel, "()")
-			goalLabelParts := strings.Split(goalLabel, ", ")
+			// Add rule to extension suggestions only
+			// in case we did not already do so.
+			rulesState[rule.Properties["table"].(string)] = fmt.Sprintf("<code>%s(node, ...)@async :- ...;</code>", rule.Properties["table"].(string))
+		}
+
+		for rule := range rulesState {
 
 			// Append an extension suggestion to the final slice.
-			extensions = append(extensions, fmt.Sprintf("<code>%s(%s, ...)@async :- ...;</code>", rule.Properties["table"].(string), goalLabelParts[0]))
+			extensions = append(extensions, rulesState[rule])
 		}
 
 		err = asyncEventsRows.Close()
