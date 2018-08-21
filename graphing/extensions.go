@@ -10,7 +10,7 @@ import (
 // Functions.
 
 // GenerateExtensions
-func (n *Neo4J) GenerateExtensions() ([]string, error) {
+func (n *Neo4J) GenerateExtensions() (bool, []string, error) {
 
 	// Track if all runs achieve the precondition.
 	allAchievedPre := true
@@ -28,14 +28,14 @@ func (n *Neo4J) GenerateExtensions() ([]string, error) {
 		RETURN collect(pre) AS pres;
 	`, nil)
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
 
 	var preAchievedRaw []interface{}
 
 	preAchievedRaw, _, err = preAchievedRows.NextNeo()
 	if err != nil && err != io.EOF {
-		return nil, err
+		return false, nil, err
 	} else if err == nil {
 
 		// Collect actual result we are interested in.
@@ -51,7 +51,7 @@ func (n *Neo4J) GenerateExtensions() ([]string, error) {
 
 	err = preAchievedRows.Close()
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
 
 	if !allAchievedPre {
@@ -66,12 +66,12 @@ func (n *Neo4J) GenerateExtensions() ([]string, error) {
 			RETURN r;
 		`, nil)
 		if err != nil {
-			return nil, err
+			return false, nil, err
 		}
 
 		asyncEventsRaw, _, err := asyncEventsRows.All()
 		if err != nil {
-			return nil, err
+			return false, nil, err
 		}
 
 		for i := range asyncEventsRaw {
@@ -91,9 +91,9 @@ func (n *Neo4J) GenerateExtensions() ([]string, error) {
 
 		err = asyncEventsRows.Close()
 		if err != nil {
-			return nil, err
+			return false, nil, err
 		}
 	}
 
-	return extensions, nil
+	return allAchievedPre, extensions, nil
 }

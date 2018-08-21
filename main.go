@@ -40,7 +40,7 @@ type GraphDatabase interface {
 	PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, error)
 	CreateNaiveDiffProv(bool, []uint, *gographviz.Graph) ([]*gographviz.Graph, []*gographviz.Graph, [][]*fi.Missing, error)
 	GenerateCorrections() ([]string, error)
-	GenerateExtensions() ([]string, error)
+	GenerateExtensions() (bool, []string, error)
 }
 
 // Reporter
@@ -129,7 +129,7 @@ func main() {
 	}
 
 	// Clean-up loaded provenance data and
-	// reimport in reduced versions.
+	// re-import in reduced versions.
 	err = debugRun.graphDB.SimplifyProv(iters)
 	if err != nil {
 		log.Fatalf("Could not clean-up initial provenance data: %v", err)
@@ -174,7 +174,7 @@ func main() {
 
 	// Attempt to create extension proposals in case
 	// the precondition depends on network events.
-	extensions, err := debugRun.graphDB.GenerateExtensions()
+	allRunsAchievedPre, extensions, err := debugRun.graphDB.GenerateExtensions()
 	if err != nil {
 		log.Fatalf("Error while generating extensions: %v", err)
 	}
@@ -191,10 +191,9 @@ func main() {
 		// for programmers to focus on first.
 		if len(corrections) > 0 {
 
-			// We observed an invariant violation. Suggest corrections first.
+			// We observed an specification violation. Suggest corrections first.
 			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "A fault occurred. Let's try making the protocol correct first.")
 			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, corrections...)
-
 		} else if len(extensions) > 0 {
 
 			// In case there exist runs in this execution where the
@@ -203,14 +202,18 @@ func main() {
 			// run to establish the precondition, it might be a good
 			// idea for the system designers to make sure these rules
 			// are maximum fault-tolerant.
-			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "Good job, no invariant violation. At least one run did not establish the precondition, though. Maybe double-check the fault tolerance of the following rules:")
+			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "Good job, no specification violation. At least one run did not establish the precondition, though. Maybe double-check the fault tolerance of the following rules:")
 			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, extensions...)
+		} else if !allRunsAchievedPre {
 
+			// We saw a bug, but we don't find corrections or extensions
+			// to suggest. This must be a bug outside our capabilities
+			// (e.g., local-logic).
+			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "Nemo is of no help with this bug.")
 		} else {
 
-			// No invariant violation happened, no more fault tolerance to add.
+			// No specification violation happened, no more fault tolerance to add.
 			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "Well done! No faults, no missing fault tolerance.")
-
 		}
 
 		runs[iters[i]].InterProto = interProto
