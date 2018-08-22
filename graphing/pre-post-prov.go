@@ -82,7 +82,7 @@ func (n *Neo4J) loadProv(iteration uint, provCond string, provData *fi.ProvData)
 
 	// Verify number of inserted elements.
 	if int64(len(provData.Goals)) != resCnt {
-		return fmt.Errorf("Run %d: inserted number of goals (%d) does not equal number of precondition provenance goals (%d)", iteration, resCnt, len(provData.Goals))
+		return fmt.Errorf("Run %d: inserted number of goals (%d) does not equal number of antecedent provenance goals (%d)", iteration, resCnt, len(provData.Goals))
 	}
 
 	resCnt = 0
@@ -142,7 +142,7 @@ func (n *Neo4J) loadProv(iteration uint, provCond string, provData *fi.ProvData)
 
 	// Verify number of inserted elements.
 	if int64(len(provData.Rules)) != resCnt {
-		return fmt.Errorf("Run %d: inserted number of rules (%d) does not equal number of precondition provenance rules (%d)", iteration, resCnt, len(provData.Rules))
+		return fmt.Errorf("Run %d: inserted number of rules (%d) does not equal number of antecedent provenance rules (%d)", iteration, resCnt, len(provData.Rules))
 	}
 
 	resCnt = 0
@@ -206,7 +206,7 @@ func (n *Neo4J) loadProv(iteration uint, provCond string, provData *fi.ProvData)
 
 	// Verify number of inserted elements.
 	if int64(len(provData.Edges)) != resCnt {
-		return fmt.Errorf("Run %d: inserted number of edges (%d) does not equal number of precondition provenance edges (%d)", iteration, resCnt, len(provData.Edges))
+		return fmt.Errorf("Run %d: inserted number of edges (%d) does not equal number of antecedent provenance edges (%d)", iteration, resCnt, len(provData.Edges))
 	}
 
 	return nil
@@ -250,29 +250,29 @@ func (n *Neo4J) LoadRawProvenance() error {
 
 	for i := range n.Runs {
 
-		// Load precondition provenance.
-		fmt.Printf("\t[%d] Precondition provenance... ", n.Runs[i].Iteration)
+		// Load antecedent provenance.
+		fmt.Printf("\t[%d] Antecedent provenance... ", n.Runs[i].Iteration)
 		err := n.loadProv(n.Runs[i].Iteration, "pre", n.Runs[i].PreProv)
 		if err != nil {
 			return err
 		}
 		fmt.Printf("done\n")
 
-		// Taint goals for which the precondition holds.
+		// Taint goals for which the antecedent holds.
 		err = n.markConditionHolds(n.Runs[i].Iteration, "pre")
 		if err != nil {
 			return err
 		}
 
-		// Load postcondition provenance.
-		fmt.Printf("\t[%d] Postcondition provenance... ", n.Runs[i].Iteration)
+		// Load consequent provenance.
+		fmt.Printf("\t[%d] Consequent provenance... ", n.Runs[i].Iteration)
 		err = n.loadProv(n.Runs[i].Iteration, "post", n.Runs[i].PostProv)
 		if err != nil {
 			return err
 		}
 		fmt.Printf("done\n")
 
-		// Taint goals for which the postcondition holds.
+		// Taint goals for which the consequent holds.
 		err = n.markConditionHolds(n.Runs[i].Iteration, "post")
 		if err != nil {
 			return err
@@ -287,7 +287,7 @@ func (n *Neo4J) LoadRawProvenance() error {
 // PullPrePostProv
 func (n *Neo4J) PullPrePostProv() ([]*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, []*gographviz.Graph, error) {
 
-	fmt.Printf("Pulling pre- and postcondition provenance... ")
+	fmt.Printf("Pulling antecedent and consequent provenance... ")
 
 	preDots := make([]*gographviz.Graph, len(n.Runs))
 	postDots := make([]*gographviz.Graph, len(n.Runs))

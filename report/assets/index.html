@@ -47,7 +47,7 @@
                 <div id = "pre-post-correctness" class = "card-header">
 
                     <h5 class = "mb-0">
-                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseCorrections" aria-expanded = "false" aria-controls = "collapseCorrections">Specification Provenance (Pre <i class = "fas fa-long-arrow-alt-right"></i> Post)</button>
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseCorrections" aria-expanded = "false" aria-controls = "collapseCorrections">Specification Provenance (Antecedent <i class = "fas fa-long-arrow-alt-right"></i> Consequent)</button>
                     </h5>
 
                 </div>
@@ -56,7 +56,7 @@
 
                     <div class = "card-body">
 
-                        <span class = "help-block">Can we suggest modifications to precondition events that make the precondition stricter?</span>
+                        <span class = "help-block">Can we suggest modifications to antecedent events that make the antecedent stricter?</span>
 
                         <ul id = "pre-post-correctness-corrections"></ul>
 
@@ -71,7 +71,7 @@
                 <div id = "diff-prov" class = "card-header">
 
                     <h5 class = "mb-0">
-                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseDiffProv" aria-expanded = "false" aria-controls = "collapseDiffProv">Differential Provenance = Good - Bad</button>
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseDiffProv" aria-expanded = "false" aria-controls = "collapseDiffProv">Differential Provenance = Successful - Failed</button>
                     </h5>
 
                 </div>
@@ -134,7 +134,7 @@
 
                     <div class = "card-body">
 
-                        <span class = "help-block">When do <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> hold? If a window exists between pre- and postcondition, this allows for faults to happen.</span>
+                        <span class = "help-block">When do <span style = "color: #b22222;">antecedent</span> and <span style = "color: #00bfff;">consequent</span> hold? If a window exists between antecedent and consequent, this allows for faults to happen.</span>
 
                         <div id = "hazard-analysis"></div>
 
@@ -149,7 +149,7 @@
                 <div id = "pre-post-prov" class = "card-header">
 
                     <h5 class = "mb-0">
-                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapsePrePost" aria-expanded = "false" aria-controls = "collapsePrePost">Pre- and Postcondition Provenance</button>
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapsePrePost" aria-expanded = "false" aria-controls = "collapsePrePost">Antecedent and Consequent Provenance</button>
                     </h5>
 
                 </div>
@@ -158,7 +158,7 @@
 
                     <div class = "card-body">
 
-                        <span class = "help-block">Which events were required for <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> to be achieved?</span>
+                        <span class = "help-block">Which events were required for <span style = "color: #b22222;">antecedent</span> and <span style = "color: #00bfff;">consequent</span> to be achieved?</span>
                         <span class = "help-block">Message passing events are marked with a <span style = "color: #7cfc00;">bold</span> border, next chains written in <span style = "color: #ffd700;">gold</span>.</span>
 
                         <div class = "row">
@@ -192,7 +192,7 @@
                 <div id = "cleaned-pre-post-prov" class = "card-header">
 
                     <h5 class = "mb-0">
-                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseProcessedPrePost" aria-expanded = "false" aria-controls = "collapseProcessedPrePost">Simplified Pre- and Postcondition Provenance</button>
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseProcessedPrePost" aria-expanded = "false" aria-controls = "collapseProcessedPrePost">Simplified Antecedent and Consequent Provenance</button>
                     </h5>
 
                 </div>
@@ -201,7 +201,7 @@
 
                     <div class = "card-body">
 
-                        <span class = "help-block">Which events were <span style = "font-style: italic;">essentially</span> required for <span style = "color: #b22222;">precondition</span> and <span style = "color: #00bfff;">postcondition</span> to be achieved?</span>
+                        <span class = "help-block">Which events were <span style = "font-style: italic;">essentially</span> required for <span style = "color: #b22222;">antecedent</span> and <span style = "color: #00bfff;">consequent</span> to be achieved?</span>
                         <span class = "help-block">Message passing events are marked with a <span style = "color: #7cfc00;">bold</span> border, next chains written in <span style = "color: #ffd700;">gold</span>.</span>
 
                         <div class = "row">
@@ -235,7 +235,7 @@
                 <div id = "inter-proto-prov" class = "card-header">
 
                     <h5 class = "mb-0">
-                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseInterProto" aria-expanded = "false" aria-controls = "collapseInterProto">Prototypical Success Postcondition Provenance (Intersection)</button>
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseInterProto" aria-expanded = "false" aria-controls = "collapseInterProto">Prototypical Success Consequent Provenance (Intersection)</button>
                     </h5>
 
                 </div>
@@ -273,7 +273,7 @@
                 <div id = "union-proto-prov" class = "card-header">
 
                     <h5 class = "mb-0">
-                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseUnionProto" aria-expanded = "false" aria-controls = "collapseUnionProto">Prototypical Success Postcondition Provenance (Union)</button>
+                        <button class = "btn btn-link" type = "button" data-toggle = "collapse" data-target = "#collapseUnionProto" aria-expanded = "false" aria-controls = "collapseUnionProto">Prototypical Success Consequent Provenance (Union)</button>
                     </h5>
 
                 </div>

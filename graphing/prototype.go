@@ -66,7 +66,7 @@ func (n *Neo4J) extractProtos(iters []uint, condition string) ([]string, []strin
 
 				if len(rules) > 0 {
 
-					// Count how many times the precondition was achieved.
+					// Count how many times the antecedent was achieved.
 					achvdCond += 1
 
 					// Add rules slice to tracking structure.
@@ -211,9 +211,9 @@ func (n *Neo4J) CreatePrototypes(iters []uint, failedIters []uint) ([]string, []
 	fmt.Printf("Running extraction of success prototypes... ")
 
 	// In the future, we might want to add
-	// analysis of precondition prototypes.
+	// analysis of antecedent prototypes.
 
-	// Create postcondition intersection-prototype
+	// Create consequent intersection-prototype
 	// and union-prototype.
 	interProto, unionProto, err := n.extractProtos(iters, "post")
 	if err != nil {
@@ -225,7 +225,7 @@ func (n *Neo4J) CreatePrototypes(iters []uint, failedIters []uint) ([]string, []
 
 	for i := range failedIters {
 
-		// Collect all nodes missing in the failed execution's postcondition
+		// Collect all nodes missing in the failed execution's consequent
 		// provenance that are part of the intersection-prototype.
 		interMiss, err := n.missingFrom(interProto, failedIters[i], "post")
 		if err != nil {
@@ -233,7 +233,7 @@ func (n *Neo4J) CreatePrototypes(iters []uint, failedIters []uint) ([]string, []
 		}
 		interProtoMiss[i] = interMiss
 
-		// Collect all nodes missing in the failed execution's postcondition
+		// Collect all nodes missing in the failed execution's consequent
 		// provenance that are part of the union-prototype.
 		unionMiss, err := n.missingFrom(unionProto, failedIters[i], "post")
 		if err != nil {

@@ -20,11 +20,11 @@ type GoalRulePair struct {
 // Functions.
 
 // findPreTriggers extracts the trigger events
-// that mark the transition from the precondition
+// that mark the transition from the antecedent
 // turning from false to true.
 func (n *Neo4J) findPreTriggers(run uint) (map[*fi.Rule][]*GoalRulePair, error) {
 
-	// Query precondition provenance of specified run
+	// Query antecedent provenance of specified run
 	// for event chains representing the following form:
 	// aggregation rule, trigger goal, trigger rule.
 	stmtTriggers, err := n.Conn1.PrepareNeo(`
@@ -112,11 +112,11 @@ func (n *Neo4J) findPreTriggers(run uint) (map[*fi.Rule][]*GoalRulePair, error) 
 }
 
 // findPostTriggers extracts the trigger events
-// that mark the transition from the postcondition
+// that mark the transition from the consequent
 // turning from false to true.
 func (n *Neo4J) findPostTriggers(run uint) (map[*fi.Goal][]*fi.Rule, error) {
 
-	// Query postcondition provenance of specified run
+	// Query consequent provenance of specified run
 	// for pairs of trigger goal and trigger rule.
 	stmtTriggers, err := n.Conn1.PrepareNeo(`
 		MATCH (g:Goal {run: {run}, condition: "post", condition_holds: true})-[*1]->(r:Rule {run: {run}, condition: "post"})
@@ -193,12 +193,12 @@ func (n *Neo4J) findPostTriggers(run uint) (map[*fi.Goal][]*fi.Rule, error) {
 }
 
 // GenerateCorrections extracts the triggering events required
-// to achieve pre- and postcondition in the first (successful)
+// to achieve antecedent and consequent in the first (successful)
 // run. We use this information in case the fault injector was
 // able to inject a fault that caused the invariant to be violated
 // in order to generate correction suggestions for how the system
-// designers could strengthen the precondition to only fire when
-// we are sure the postcondition holds as well.
+// designers could strengthen the antecedent to only fire when
+// we are sure the consequent holds as well.
 func (n *Neo4J) GenerateCorrections() ([]string, error) {
 
 	fmt.Printf("Running generation of suggestions for corrections (pre ~> post)... ")
@@ -206,13 +206,13 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 	// Recs will contain our top-level recommendations.
 	recs := make([]string, 0, 6)
 
-	// Extract the precondition trigger event chains.
+	// Extract the antecedent trigger event chains.
 	preTriggers, err := n.findPreTriggers(0)
 	if err != nil {
 		return nil, err
 	}
 
-	// Extract the postcondition trigger event chains.
+	// Extract the consequent trigger event chains.
 	postTriggers, err := n.findPostTriggers(0)
 	if err != nil {
 		return nil, err
@@ -263,8 +263,8 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 
 		if len(differentNodes[preAgg.Table]) == 0 {
 
-			// The involved nodes for this precondition
-			// rule and all postcondition rules to add are
+			// The involved nodes for this antecedent
+			// rule and all consequent rules to add are
 			// the same ones. Thus, local order suffices.
 
 			for postGoal := range postTriggers {
@@ -272,9 +272,9 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 			}
 		} else {
 
-			// At least one goal on the postcondition side
+			// At least one goal on the consequent side
 			// takes place on a different node than this
-			// precondition's goal. We need communication.
+			// antecedent's goal. We need communication.
 
 			for pre := range differentNodes[preAgg.Table] {
 
@@ -289,7 +289,7 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 					recs = append(recs, fmt.Sprintf("<code>%s</code> needs to know that <code>%s</code> has executed <code>%s</code>. Add:<br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>ack_%s(%s, ...)@async :- %s(%s, ...), ...;</code>", preNode, postNode, postRule, postRule, preNode, postRule, postNode))
 
 					// Also, add receipt of this message as dependency to
-					// the updated precondition trigger.
+					// the updated antecedent trigger.
 					aggNew = fmt.Sprintf("%s, ack_%s(%s, sender=%s, ...)", aggNew, postRule, preNode, postNode)
 				}
 			}
@@ -298,19 +298,19 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 
 				if preTriggers[preAgg][i].Rule.Type != "next" {
 
-					// In case one of the rules underneath the aggregation
-					// rule right above the triggering rules for the pre-
-					// condition is not of type next (i.e., state-preserving),
-					// we need to introduce a buffering scheme so that we do
-					// not lose the state required for firing pre.
+					// In case one of the rules underneath the aggregation rule
+					// right above the triggering rules for the antecedent is
+					// not of type next (i.e., state-preserving), we need to
+					// introduce a buffering scheme so that we do not lose the
+					// state required for firing pre.
 
 					rule := preTriggers[preAgg][i].Rule.Table
 					node := preTriggers[preAgg][i].Goal.Receiver
 
 					// Add the buffer_RULE construct as a suggestion.
-					recs = append(recs, fmt.Sprintf("Precondition depends on timing of an onetime event. Make it persistent. Add:<br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>buffer_%s(%s, ...) :- %s(%s, ...), ...;</code><br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>buffer_%s(%s, ...)@next :- buffer_%s(%s, ...), ...;", rule, node, rule, node, rule, node, rule, node))
+					recs = append(recs, fmt.Sprintf("Antecedent depends on timing of an onetime event. Make it persistent. Add:<br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>buffer_%s(%s, ...) :- %s(%s, ...), ...;</code><br /> &nbsp; &nbsp; &nbsp; &nbsp; <code>buffer_%s(%s, ...)@next :- buffer_%s(%s, ...), ...;", rule, node, rule, node, rule, node, rule, node))
 
-					// Update the new precondition trigger dependencies
+					// Update the new antecedent trigger dependencies
 					// by replacing the old rule with the new buffer_ rule.
 					aggNew = strings.Replace(aggNew, fmt.Sprintf("%s(%s, ...)", rule, node), fmt.Sprintf("buffer_%s(%s, ...)", rule, node), -1)
 				}
@@ -318,7 +318,7 @@ func (n *Neo4J) GenerateCorrections() ([]string, error) {
 		}
 
 		// Finally, append the updated dependency rule
-		// for firing the precondition to our recommendations.
+		// for firing the antecedent to our recommendations.
 		recs = append(recs, fmt.Sprintf("Change: <code>%s;</code> &nbsp; <i class = \"fas fa-long-arrow-alt-right\"></i> &nbsp; <code>%s;</code>", preTriggerRules[preAgg.Table], aggNew))
 	}
 

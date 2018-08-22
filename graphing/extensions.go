@@ -12,7 +12,7 @@ import (
 // GenerateExtensions
 func (n *Neo4J) GenerateExtensions() (bool, []string, error) {
 
-	// Track if all runs achieve the precondition.
+	// Track if all runs achieve the antecedent.
 	allAchievedPre := true
 
 	// Prepare slice of extensions.
@@ -21,7 +21,7 @@ func (n *Neo4J) GenerateExtensions() (bool, []string, error) {
 	// Prepare map for adding extensions only once per rule.
 	rulesState := make(map[string]string)
 
-	// Query for precondition achievement per run.
+	// Query for antecedent achievement per run.
 	preAchievedRows, err := n.Conn1.QueryNeo(`
 		MATCH (pre:Goal {condition: "pre", table: "pre", condition_holds: true})
 		WHERE pre.run < 1000
@@ -56,7 +56,7 @@ func (n *Neo4J) GenerateExtensions() (bool, []string, error) {
 
 	if !allAchievedPre {
 
-		// In case not all runs achieved the precondition,
+		// In case not all runs achieved the antecedent,
 		// we query the successful (first) run and collect
 		// all network events.
 

@@ -30,18 +30,18 @@ func (m *Molly) LoadOutput() error {
 	m.SuccessRunsIters = make([]uint, 0, len(m.Runs))
 	m.FailedRunsIters = make([]uint, 0, 3)
 
-	// Load pre- and post-provenance for each iteration.
+	// Load antecedent and consequent provenance for each iteration.
 	for i := range m.Runs {
 
 		// Create lookup map for when the
-		// precondition holds in this run.
+		// antecedent holds in this run.
 		m.Runs[i].TimePreHolds = make(map[string]bool)
 		for _, table := range m.Runs[i].Model.Tables["pre"] {
 			m.Runs[i].TimePreHolds[table[(len(table)-1)]] = true
 		}
 
 		// Create lookup map for when the
-		// postcondition holds in this run.
+		// consequent holds in this run.
 		m.Runs[i].TimePostHolds = make(map[string]bool)
 		for _, table := range m.Runs[i].Model.Tables["post"] {
 			m.Runs[i].TimePostHolds[table[(len(table)-1)]] = true
@@ -61,12 +61,12 @@ func (m *Molly) LoadOutput() error {
 
 		rawPreProvCont, err := ioutil.ReadFile(preProvFile)
 		if err != nil {
-			return fmt.Errorf("Failed reading pre-provenance of file '%v': %v", preProvFile, err)
+			return fmt.Errorf("Failed reading antecedent provenance of file '%v': %v", preProvFile, err)
 		}
 
 		err = json.Unmarshal(rawPreProvCont, &m.Runs[i].PreProv)
 		if err != nil {
-			return fmt.Errorf("Failed to unmarshal JSON pre-provenance data: %v\n", err)
+			return fmt.Errorf("Failed to unmarshal JSON antecedent provenance data: %v\n", err)
 		}
 
 		for j := range m.Runs[i].PreProv.Goals {
@@ -91,7 +91,7 @@ func (m *Molly) LoadOutput() error {
 			// Prefix goals with "pre_".
 			m.Runs[i].PreProv.Goals[j].ID = fmt.Sprintf("run_%d_pre_%s", m.Runs[i].Iteration, m.Runs[i].PreProv.Goals[j].ID)
 
-			// Tentative mark as precondition not yet achieved
+			// Tentative mark as antecedent not yet achieved
 			// until we can do graph operations on this provenance.
 			m.Runs[i].PreProv.Goals[j].CondHolds = false
 		}
@@ -109,12 +109,12 @@ func (m *Molly) LoadOutput() error {
 
 		rawPostProvCont, err := ioutil.ReadFile(postProvFile)
 		if err != nil {
-			return fmt.Errorf("Failed reading post-provenance of file '%v': %v", postProvFile, err)
+			return fmt.Errorf("Failed reading consequent provenance of file '%v': %v", postProvFile, err)
 		}
 
 		err = json.Unmarshal(rawPostProvCont, &m.Runs[i].PostProv)
 		if err != nil {
-			return fmt.Errorf("Failed to unmarshal JSON post-provenance data: %v\n", err)
+			return fmt.Errorf("Failed to unmarshal JSON consequent provenance data: %v\n", err)
 		}
 
 		for j := range m.Runs[i].PostProv.Goals {
@@ -139,7 +139,7 @@ func (m *Molly) LoadOutput() error {
 			// Prefix goals with "post_".
 			m.Runs[i].PostProv.Goals[j].ID = fmt.Sprintf("run_%d_post_%s", m.Runs[i].Iteration, m.Runs[i].PostProv.Goals[j].ID)
 
-			// Tentative mark as postcondition not yet achieved
+			// Tentative mark as consequent not yet achieved
 			// until we can do graph operations on this provenance.
 			m.Runs[i].PostProv.Goals[j].CondHolds = false
 		}

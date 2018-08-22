@@ -354,13 +354,13 @@ func (n *Neo4J) SimplifyProv(iters []uint) error {
 
 	for i := range iters {
 
-		// Clean-copy precondition provenance (run: 1000+).
+		// Clean-copy antecedent provenance (run: 1000+).
 		err := n.cleanCopyProv(iters[i], "pre")
 		if err != nil {
 			return err
 		}
 
-		// Clean-copy postcondition provenance (run: 1000+).
+		// Clean-copy consequent provenance (run: 1000+).
 		err = n.cleanCopyProv(iters[i], "post")
 		if err != nil {
 			return err
@@ -368,13 +368,13 @@ func (n *Neo4J) SimplifyProv(iters []uint) error {
 
 		// Do preprocessing over graphs of run 1000+:
 
-		// Collapse @next chains in precondition provenance.
+		// Collapse @next chains in antecedent provenance.
 		err = n.collapseNextChains(iters[i], "pre")
 		if err != nil {
 			return err
 		}
 
-		// Collapse @next chains in postcondition provenance.
+		// Collapse @next chains in consequent provenance.
 		err = n.collapseNextChains(iters[i], "post")
 		if err != nil {
 			return err

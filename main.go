@@ -122,7 +122,7 @@ func main() {
 	defer debugRun.graphDB.CloseDB()
 
 	// Load initial (naive) version of provenance
-	// graphs for pre- and postcondition.
+	// graphs for antecedent and consequent.
 	err = debugRun.graphDB.LoadRawProvenance()
 	if err != nil {
 		log.Fatalf("Failed to import provenance (naive) into graph database: %v", err)
@@ -148,18 +148,18 @@ func main() {
 		log.Fatalf("Failed to create prototypes of successful executions: %v", err)
 	}
 
-	// Pull pre- and postcondition provenance
+	// Pull antecedent and consequent provenance
 	// and create DOT diagram strings.
 	preProvDots, postProvDots, preCleanProvDots, postCleanProvDots, err := debugRun.graphDB.PullPrePostProv()
 	if err != nil {
-		log.Fatalf("Failed to pull and generate pre- and postcondition provenance DOT: %v", err)
+		log.Fatalf("Failed to pull and generate antecedent and consequent provenance DOT: %v", err)
 	}
 
 	// Create differential provenance graphs for
-	// postcondition provenance.
+	// consequent provenance.
 	naiveDiffDots, naiveFailedDots, missingEvents, err := debugRun.graphDB.CreateNaiveDiffProv(false, debugRun.faultInj.GetFailedRunsIters(), postProvDots[0])
 	if err != nil {
-		log.Fatalf("Could not create the naive differential provenance (bad - good): %v", err)
+		log.Fatalf("Could not create differential provenance between successful and failed provenance: %v", err)
 	}
 
 	var corrections []string
@@ -173,7 +173,7 @@ func main() {
 	}
 
 	// Attempt to create extension proposals in case
-	// the precondition depends on network events.
+	// the antecedent depends on network events.
 	allRunsAchievedPre, extensions, err := debugRun.graphDB.GenerateExtensions()
 	if err != nil {
 		log.Fatalf("Error while generating extensions: %v", err)
@@ -197,19 +197,19 @@ func main() {
 		} else if len(extensions) > 0 {
 
 			// In case there exist runs in this execution where the
-			// precondition was not achieved (not per se a problem!)
+			// antecedent was not achieved (not per se a problem!)
 			// and communication had to be performed for the successful
-			// run to establish the precondition, it might be a good
+			// run to establish the antecedent, it might be a good
 			// idea for the system designers to make sure these rules
 			// are maximum fault-tolerant.
-			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "Good job, no specification violation. At least one run did not establish the precondition, though. Maybe double-check the fault tolerance of the following rules:")
+			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "Good job, no specification violation. At least one run did not establish the antecedent, though. Maybe double-check the fault tolerance of the following rules:")
 			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, extensions...)
 		} else if !allRunsAchievedPre {
 
 			// We saw a bug, but we don't find corrections or extensions
 			// to suggest. This must be a bug outside our capabilities
 			// (e.g., local-logic).
-			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "Nemo is of no help with this bug.")
+			runs[iters[i]].Recommendation = append(runs[iters[i]].Recommendation, "Nemo can't help with this type of bug. Please use the graphs below regarding differential provenance for guidance to root cause.")
 		} else {
 
 			// No specification violation happened, no more fault tolerance to add.
@@ -253,28 +253,28 @@ func main() {
 		log.Fatalf("Could not generate hazard analysis figures for report: %v", err)
 	}
 
-	// Generate and write-out precondition provenance figures.
+	// Generate and write-out antecedent provenance figures.
 	err = debugRun.reporter.GenerateFigures(iters, "pre_prov", preProvDots)
 	if err != nil {
-		log.Fatalf("Could not generate precondition provenance figures for report: %v", err)
+		log.Fatalf("Could not generate antecedent provenance figures for report: %v", err)
 	}
 
-	// Generate and write-out postcondition provenance figures.
+	// Generate and write-out consequent provenance figures.
 	err = debugRun.reporter.GenerateFigures(iters, "post_prov", postProvDots)
 	if err != nil {
-		log.Fatalf("Could not generate postcondition provenance figures for report: %v", err)
+		log.Fatalf("Could not generate consequent provenance figures for report: %v", err)
 	}
 
-	// Generate and write-out cleaned-up precondition provenance figures.
+	// Generate and write-out cleaned-up antecedent provenance figures.
 	err = debugRun.reporter.GenerateFigures(iters, "pre_prov_clean", preCleanProvDots)
 	if err != nil {
-		log.Fatalf("Could not generate cleaned-up precondition provenance figures for report: %v", err)
+		log.Fatalf("Could not generate cleaned-up antecedent provenance figures for report: %v", err)
 	}
 
-	// Generate and write-out cleaned-up postcondition provenance figures.
+	// Generate and write-out cleaned-up consequent provenance figures.
 	err = debugRun.reporter.GenerateFigures(iters, "post_prov_clean", postCleanProvDots)
 	if err != nil {
-		log.Fatalf("Could not generate cleaned-up postcondition provenance figures for report: %v", err)
+		log.Fatalf("Could not generate cleaned-up consequent provenance figures for report: %v", err)
 	}
 
 	// Generate and write-out naive differential provenance (diff) figures.
