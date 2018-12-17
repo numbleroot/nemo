@@ -1,0 +1,35 @@
+// MR-2995
+// sbt "run-main edu.berkeley.cs.boom.molly.SyncFTChecker --nodes rm,nm,am --EOT 8 --EFF 4 --crashes 1 --prov-diagrams src/test/resources/examples_ft/nemo/MR-2995-failed-after-expiry.ded"
+
+
+// Logic.
+
+container(Nm, Rm, X)@async :- begin(Rm, Nm, _, X);
+container(Nm, Rm, X)@next :- container(Nm, Rm, X);
+
+timerr(Rm, Nm, Am, X, 0) :- begin(Rm, Nm, Am, X);
+timerr(Rm, Nm, Am, X, N+1)@next :- timerr(Rm, Nm, Am, X, N);
+
+initialize(Nm, Am)@async :- init(Am, Nm);
+initialize(Nm, Am)@next :- initialize(Nm, Am);
+
+done(Am, Nm, X)@async :- initialize(Nm, Am), container(Nm, _, X);
+
+buffer_done(Am, Nm, X) :- done(Am, Nm, X);
+buffer_done(Am, Nm, X)@next :- buffer_done(Am, Nm, X);
+
+expiry(Am, Rm, X)@async :- timerr(Rm, Nm, Am, X, 4);
+expiry(Am, Rm, X)@next :- expiry(Am, Rm, X);
+
+
+// Correctness specification.
+
+pre(Am) :- initialize(Nm, Am);
+post(Am) :- buffer_done(Am, _, _);
+
+
+// Init.
+
+begin("rm", "nm", "am", 1)@1;
+init("am", "nm")@2;
+

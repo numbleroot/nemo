@@ -1,0 +1,40 @@
+// ZK-1270, Setting local sent flag races with remote acknowledgement.
+// sbt "run-main edu.berkeley.cs.boom.molly.SyncFTChecker --nodes FF,LL,A --EOT 6 --EFF 3 --crashes 0 --prov-diagrams src/test/resources/examples_ft/nemo/ZK-1270-racing-sent-flag.ded"
+
+
+// Logic.
+
+newleader(F, L, Round)@async :- elected(L, Round), ff(L, F);
+timerr(L, R, 0) :- elected(L, R);
+timerr(L, R, C+1)@next :- timerr(L, R, C);
+
+sent_flag(L, R)@next :- timerr(L, R, C), C > 1;
+ff(L, F)@next :- ff(L, F);
+
+attest(F, A, C)@async :- attestor(A, F, C);
+attest(F, A, C)@next :- attest(F, A, C);
+attestor(A, F, C+1)@next :- attestor(A, F, C);
+attestations(F, count<C>) :- attest(F, _, C);
+
+defer(F, L, Round)@next :- newleader(F, L, Round), attestations(F, N), N > 1;
+ack(L, F, Round)@async :- newleader(F, L, Round), attestations(F, 1);
+ack(L, F, Round)@async :- defer(F, L, Round);
+
+acked(L, R) :- ack(L, _, R);
+acked(L, R)@next :- acked(L, R);
+
+end_proto(L, F, R) :- ack(L, F, R), sent_flag(L, R);
+end_proto(L, F, R)@next :- end_proto(L, F, R);
+
+
+// Correctness specification.
+
+pre(L, R) :- acked(L, R);
+post(L, R) :- end_proto(L, _, R);
+
+
+// Init.
+
+attestor("A", "FF", 1)@1;
+ff("LL", "FF")@1;
+elected("LL", 1)@2;

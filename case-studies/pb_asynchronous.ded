@@ -1,0 +1,63 @@
+// Asynchronous Primary/Backup Replication.
+// sbt "run-main edu.berkeley.cs.boom.molly.SyncFTChecker --EOT 6 --EFF 4 --crashes 1 --prov-diagrams --negative-support --nodes C,a,b,c src/test/resources/examples_ft/nemo/pb_asynchronous.ded"
+
+
+// Network relationships.
+
+network("a", "a")@1;
+network("a", "b")@1;
+network("a", "c")@1;
+network("b", "a")@1;
+network("b", "b")@1;
+network("b", "c")@1;
+network("c", "a")@1;
+network("c", "b")@1;
+network("c", "c")@1;
+network(Node, Other)@next :- network(Node, Other);
+
+primary("a", "a")@1;
+primary(Node, Prim)@next :- primary(Node, Prim);
+
+replica("a", "b")@1;
+replica("a", "c")@1;
+replica(Prim, Rep)@next :- replica(Prim, Rep);
+
+client("C", "C")@1;
+client(Cli, Cli)@next :- client(Cli, Cli);
+
+conn_out("C", "a")@1;
+conn_out("a", "C")@1;
+conn_out(Cli, Prim)@next :- conn_out(Cli, Prim);
+
+
+
+// Trigger start.
+begin("C", "foo")@1;
+
+
+// Protocol behavior.
+
+// Client sends request to primary.
+request(Prim, Pload, Cli)@async :- begin(Cli, Pload), conn_out(Cli, Prim);
+
+// Primary immediately acks to client. Asynchronous Primary/Backup.
+ack(Cli, Prim, Pload)@async :- request(Prim, Pload, Cli);
+acked(Cli, Prim, Pload) :- ack(Cli, Prim, Pload);
+acked(Cli, Prim, Pload)@next :- acked(Cli, Prim, Pload);
+
+// Primary replicates to replicas in background.
+replicate(Rep, Pload, Prim, Cli)@async :- request(Prim, Pload, Cli), replica(Prim, Rep);
+
+// Nodes in the network persist received requests.
+log(Prim, Pload) :- request(Prim, Pload, Cli);
+log(Rep, Pload) :- replicate(Rep, Pload, _, _);
+log(Rep, Pload)@next :- log(Rep, Pload);
+
+
+
+// Invariants.
+
+// E2E property: Any time we ACK a payload to a client, we expect
+// that payload to be persisted on all correct replicas.
+pre(Pload) :- acked(Cli, Prim, Pload);
+post(Pload) :- log(Node, Pload), primary(Prim, Prim), notin crash(Node, Node, _), Node != Prim;

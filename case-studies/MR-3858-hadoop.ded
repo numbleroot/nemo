@@ -1,0 +1,42 @@
+// MR-3858, Incorrect local logic when job result is committed from multiple workers to manager.
+// sbt "run-main edu.berkeley.cs.boom.molly.SyncFTChecker --nodes am,w1,w2 --EOT 8 --EFF 4 --crashes 1 --prov-diagrams --negative-support src/test/resources/examples_ft/nemo/MR-3858-hadoop.ded"
+
+
+// Logic.
+
+am(W, A)@next :- am(W, A);
+
+can_commit(Am, Task, Worker)@async :- task_attempt(Worker, Task), am(Worker, Am);
+
+ccs(A, T, W) :- can_commit(A, T, W);
+ccs(A, T, W)@next :- ccs(A, T, W);
+ccc(A, T, count<W>) :- ccs(A, T, W);
+
+commit(Am, Task, Worker) :- can_commit(Am, Task, Worker), ccc(Am, Task, C), C == 1;
+ok(Worker, Task)@async :- commit(Am, Task, Worker);
+no(Worker, Task)@async :- can_commit(Am, Task, Worker), ccc(Am, Task, C), C > 1;
+
+committed(Am, Task)@next :- commit(Am, Task, _);
+committed(Am, T)@next :- committed(Am, T);
+
+do_work(W, T)@next :- ok(W, T);
+done_commit(Am, T, W)@async :- do_work(W, T), am(W, Am);
+
+done(Am, T) :- done_commit(Am, T, _);
+done(A, T)@next :- done(A, T);
+
+
+// Correctness specification.
+
+pre(T) :- committed(Am, T), notin crash(Am, Am, _);
+post(T) :- done(_, T);
+
+
+// Init.
+
+am("w1", "am")@1;
+am("w2", "am")@1;
+
+task_attempt("w1", "task1")@1;
+task_attempt("w2", "task1")@4;
+task_attempt("w2", "task1")@5;

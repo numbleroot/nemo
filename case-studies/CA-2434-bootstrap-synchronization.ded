@@ -1,0 +1,38 @@
+// CA-2434
+// sbt "run-main edu.berkeley.cs.boom.molly.SyncFTChecker --nodes n1,n2,n3,n4 --EOT 7 --EFF 5 --crashes 1 --prov-diagrams src/test/resources/examples_ft/nemo/CA-2434-bootstrap-synchronization.ded"
+
+
+// Logic.
+
+data(Node, Data)@next :- data(Node, Data);
+data(Joiner, Data)@next :- join_rsp(Joiner, _, Data);
+
+timerr(Joiner, 0) :- do_join(Joiner);
+timerr(J, N+1)@next :- timerr(J, N);
+
+join(Anchor, Joiner)@async :- do_join(Joiner), primary(Joiner, Anchor);
+join(Anchor2, Joiner)@async :- timerr(Joiner, 2), secondary(Joiner, Anchor2), notin join_rsp(Joiner, _, _);
+
+join_rsp(Joiner, Anchor, Data)@async :- join(Anchor, Joiner), data(Anchor, Data);
+join_rsp(J, A, D)@next :- join_rsp(J, A, D);
+
+primary(J, A)@next :- primary(J, A);
+secondary(J, A)@next :- secondary(J, A);
+
+votes(Data, count<Node>) :- data(Node, Data), notin crash(Node, Node, _);
+
+
+// Correctness specification.
+
+pre(Data) :- data(Node, Data), Data == "new";
+post(Data) :- data(_, Data), votes(Data, Cnt), Cnt > 1;
+
+
+// Init.
+
+data("n1", "new")@1;
+data("n2", "new")@1;
+data("n3", "old")@1;
+primary("n4", "n2")@1;
+secondary("n4", "n3")@1;
+do_join("n4")@2;

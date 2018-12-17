@@ -3,9 +3,14 @@
 Nemo debugs Distributed Systems by analyzing provenance graphs obtained during fault injection.
 
 
+## Protocol Case Studies
+
+[Here](https://github.com/numbleroot/nemo/tree/master/case-studies) we provide the Dedalus code for the six case studies we performed as part of the evaluation of our CIDR 2019 paper.
+
+
 ## Running Nemo
 
-We require two things for running Nemo: a [Go](https://golang.org/doc/install) and a [Docker](https://docs.docker.com/install/overview/) installation. Preferrably, both come from your system's package manager, if available. Make sure to start the Docker daemon afterwards.
+We require two things for running Nemo: a [Go](https://golang.org/doc/install) and a [Docker](https://docs.docker.com/install/overview/) installation. Preferably, both come from your system's package manager, if available. Make sure to start the Docker daemon afterwards.
 
 Once, these two dependencies are installed and properly configured, run:
 ```

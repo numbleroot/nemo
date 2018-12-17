@@ -1,0 +1,29 @@
+// CA-2083, Racing schema and data message.
+// sbt "run-main edu.berkeley.cs.boom.molly.SyncFTChecker --nodes n1,n2 --EOT 6 --EFF 4 --crashes 0 --prov-diagrams src/test/resources/examples_ft/nemo/CA-2083-hinted-handoff.ded"
+
+
+// Logic.
+
+schema_msg(N2, N1, S)@async :- begin_hh(N1, N2, S, _);
+hh_step2(N1, N2, D)@next :- begin_hh(N1, N2, _, D);
+data_msg(N2, N1, D)@async :- hh_step2(N1, N2, D);
+
+schema(N2, N1, S) :- schema_msg(N2, N1, S);
+schema(N2, N1, S)@next :- schema(N2, N1, S);
+
+complete(N2, N1, S, D) :- data_msg(N2, N1, D), schema(N2, N1, S);
+complete(N2, N1, S, D)@next :- complete(N2, N1, S, D);
+
+got_data(N2, D) :- data_msg(N2, _, D);
+got_data(N2, D)@next :- got_data(N2, D);
+
+
+// Correctness specification.
+
+pre(D) :- got_data(N2, D);
+post(D) :- complete(_, _, _, D);
+
+
+// Init.
+
+begin_hh("n1", "n2", "schema", "data")@1;
